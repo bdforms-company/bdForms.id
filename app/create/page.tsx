@@ -71,7 +71,7 @@ export default function CreateEventPage() {
         <Link href="/" className="mb-8 flex items-center gap-2">
           <span className="material-symbols-outlined" style={{ color: "var(--green)" }}>wifi_off</span>
           <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--green)" }}>
-            Offline-First Registration Platform
+             Fast Registration Platform
           </span>
         </Link>
         <h1 className="mb-4 max-w-3xl text-3xl font-bold md:text-5xl">
