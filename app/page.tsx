@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteNav } from "@/components/SiteNav";
 import "./design.css";
 
 const HERO_IMG =
@@ -9,23 +10,7 @@ const LOGOS = ["Aceh Hackathon", "Barika Coffee and Space", "Nightcoder", "Egg G
 export default function LandingPage() {
   return (
     <div className="bd">
-      {/* Nav */}
-      <nav className="fixed top-0 z-50 flex h-20 w-full items-center justify-between border-b border-white/5 bg-black/70 px-6 backdrop-blur-xl md:px-10">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[28px]" style={{ color: "var(--primary)" }}>layers</span>
-          <span className="text-xl font-bold" style={{ color: "var(--primary)" }}>bdForms</span>
-        </div>
-        <div className="hidden items-center gap-8 md:flex">
-          <span className="border-b-2 pb-1 text-sm font-bold" style={{ color: "var(--green)", borderColor: "var(--green)" }}>Product</span>
-          <a href="#" className="text-sm font-medium hover:opacity-80" style={{ color: "var(--on-surface-variant)" }}>Docs</a>
-          <a href="#" className="text-sm font-medium hover:opacity-80" style={{ color: "var(--on-surface-variant)" }}>Solutions</a>
-          <Link href="/pricing" className="text-sm font-medium hover:opacity-80" style={{ color: "var(--on-surface-variant)" }}>Pricing</Link>
-        </div>
-        <div className="flex items-center gap-6">
-          <Link href="/create" className="text-sm hover:opacity-80" style={{ color: "var(--on-surface-variant)" }}>Login</Link>
-          <Link href="/create" className="rounded-full px-6 py-2.5 text-sm font-bold neon-green" style={{ background: "var(--green)", color: "var(--on-green)" }}>Get Started</Link>
-        </div>
-      </nav>
+      <SiteNav active="product" />
 
       {/* Hero */}
       <section className="relative overflow-hidden px-6 pt-40 pb-20 md:px-10">
@@ -34,13 +19,13 @@ export default function LandingPage() {
         <div className="relative z-10 mx-auto text-center">
           <div className="mb-8 inline-flex items-center gap-2 rounded-full border px-4 py-1.5" style={{ borderColor: "rgba(59,73,76,0.5)", background: "var(--surface-low)" }}>
             <span className="h-2 w-2 animate-pulse rounded-full" style={{ background: "var(--green)" }} />
-            <span className="text-xs" style={{ color: "var(--on-surface-variant)" }}>Fast. Secure. Offline-First.</span>
+            <span className="text-xs" style={{ color: "var(--on-surface-variant)" }}>Fast. Secure. offline-first.</span>
           </div>
           <h1 className="mx-auto mb-6 max-w-4xl text-4xl font-bold leading-tight tracking-tight md:text-6xl">
             Fast-Track Registration Under <span className="gradient-text">3 Seconds</span>
           </h1>
           <p className="mx-auto mb-12 max-w-2xl text-base md:text-lg" style={{ color: "var(--on-surface-variant)" }}>
-            Sistem registrasi event termutakhir di Indonesia. Tanpa antrian, tanpa kendala sinyal, dan proses validasi instan untuk pengalaman tamu yang eksklusif.
+            Sistem registrasi event. Tanpa antrian, tanpa kendala sinyal, dan proses validasi instan untuk pengalaman tamu yang eksklusif.
           </p>
           <div className="mb-20 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link href="/create" className="rounded-xl px-8 py-4 text-base font-bold neon-cyan" style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}>Start Free Trial</Link>
