@@ -34,3 +34,21 @@ insert into events (name) values ('Hackathon Demo Event') returning id;
 -- Production-ready bakal pake RLS policy berbasis event_id.
 alter table events disable row level security;
 alter table participants disable row level security;
+
+-- ============================================================
+-- Storage: qr-temp (public QR PNGs for ticket emails)
+-- Paste di Supabase SQL Editor jika bucket belum ada.
+-- ============================================================
+insert into storage.buckets (id, name, public)
+values ('qr-temp', 'qr-temp', true)
+on conflict (id) do nothing;
+
+create policy "Allow anon upload qr-temp"
+on storage.objects for insert
+to anon
+with check (bucket_id = 'qr-temp');
+
+create policy "Allow anon read qr-temp"
+on storage.objects for select
+to anon
+using (bucket_id = 'qr-temp');

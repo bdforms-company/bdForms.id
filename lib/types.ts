@@ -1,3 +1,12 @@
+export type CustomField = {
+  id: string;
+  label: string;
+  type: "text" | "email" | "phone" | "number" | "textarea" | "select";
+  required: boolean;
+  placeholder?: string;
+  options?: string[];
+};
+
 export interface Participant {
   id: string;
   name: string;

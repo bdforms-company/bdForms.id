@@ -3,10 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Html5Qrcode } from "html5-qrcode";
+import { supabase } from "@/lib/supabase";
 import { useScannerStore } from "@/store/useScannerStore";
 import "../design.css";
 
-type UiState = "loading" | "invalid" | "ready" | "scanning" | "verified" | "duplicate" | "notfound";
+type UiState = "loading" | "invalid" | "not_yet" | "ended" | "ready" | "scanning" | "verified" | "duplicate" | "notfound";
+
+function getScannerWindow(eventDate: string) {
+  const windowStart = new Date(`${eventDate}T00:00:00`);
+  const windowEnd = new Date(`${eventDate}T00:00:00`);
+  windowEnd.setDate(windowEnd.getDate() + 1);
+  windowEnd.setHours(23, 59, 59, 999);
+  return { windowStart, windowEnd };
+}
 
 function LiveClock() {
   const [now, setNow] = useState(() => new Date());
@@ -40,6 +49,8 @@ export default function ScanPage() {
   const [ui, setUi] = useState<UiState>("loading");
   const [manual, setManual] = useState("");
   const [fetchErr, setFetchErr] = useState<string | null>(null);
+  const [eventName, setEventName] = useState("");
+  const [eventDateLabel, setEventDateLabel] = useState("");
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lockRef = useRef(false);
@@ -56,15 +67,48 @@ export default function ScanPage() {
       return;
     }
     let active = true;
-    fetchInitialData(eventId)
-      .then(() => active && setUi("ready"))
-      .catch((e) => {
+
+    const init = async () => {
+      const { data: ev } = await supabase
+        .from("events")
+        .select("name, event_date")
+        .eq("id", eventId)
+        .single();
+
+      if (!active) return;
+
+      if (ev?.name) setEventName(ev.name);
+
+      if (ev?.event_date) {
+        const { windowStart, windowEnd } = getScannerWindow(ev.event_date);
+        const now = new Date();
+        setEventDateLabel(
+          windowStart.toLocaleDateString("id-ID", { dateStyle: "long" }),
+        );
+
+        if (now < windowStart) {
+          setUi("not_yet");
+          return;
+        }
+        if (now > windowEnd) {
+          setUi("ended");
+          return;
+        }
+      }
+
+      try {
+        await fetchInitialData(eventId);
+        if (active) setUi("ready");
+      } catch (e) {
         console.error(e);
         if (active) {
           setFetchErr("Gagal mengunduh data (offline). Memakai data tersimpan.");
           setUi("ready");
         }
-      });
+      }
+    };
+
+    init();
     return () => {
       active = false;
     };
@@ -140,6 +184,41 @@ export default function ScanPage() {
         <h1 className="text-2xl font-bold">Link scanner tidak valid</h1>
         <p className="max-w-sm text-sm" style={{ color: "var(--on-surface-variant)" }}>Gunakan link scanner dari halaman buat event.</p>
         <Link href="/create" className="rounded-lg px-6 py-3 font-bold" style={{ background: "var(--green)", color: "var(--on-green)" }}>Buat Event</Link>
+      </div>
+    );
+  }
+
+  if (ui === "not_yet") {
+    return (
+      <div className="bd flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <div className="glass w-full max-w-md rounded-2xl p-8 text-center">
+          <span className="material-symbols-outlined mb-4 text-7xl" style={{ color: "var(--on-surface-variant)" }}>schedule</span>
+          <h1 className="mb-3 text-2xl font-bold">Scanner Belum Aktif</h1>
+          <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>
+            Scanner akan aktif mulai {eventDateLabel}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (ui === "ended") {
+    return (
+      <div className="bd flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <div className="glass w-full max-w-md rounded-2xl p-8 text-center">
+          <span className="material-symbols-outlined mb-4 text-7xl" style={{ color: "var(--green)" }}>check_circle</span>
+          <h1 className="mb-3 text-2xl font-bold">Event Sudah Selesai</h1>
+          <p className="mb-6 text-sm" style={{ color: "var(--on-surface-variant)" }}>
+            Scanner untuk {eventName || "acara ini"} sudah ditutup. Cek dashboard untuk lihat data peserta.
+          </p>
+          <Link
+            href={`/dashboard?eventId=${eventId}`}
+            className="inline-block rounded-lg px-6 py-3 font-bold"
+            style={{ background: "var(--green)", color: "var(--on-green)" }}
+          >
+            Buka Dashboard
+          </Link>
+        </div>
       </div>
     );
   }

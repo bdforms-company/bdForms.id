@@ -140,3 +140,98 @@ body {
   z-index: 60;
 }
 .bd-menu:hover .bd-mega { opacity: 1; visibility: visible; }
+
+/* ===== SiteNav — dropdown mega menu ===== */
+.nav-mega-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 5rem;
+}
+
+.nav-mega-trigger {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.nav-mega-trigger:hover { color: var(--on-surface); }
+
+/* Panel: tersembunyi sampai hover */
+.nav-mega-panel {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding-top: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 60;
+}
+.nav-mega-group:hover .nav-mega-panel {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Panel inner (kartu gelap) */
+.nav-mega-inner {
+  display: flex;
+  gap: 2rem;
+  background: rgba(10, 12, 12, 0.97);
+  border: 1px solid rgba(59, 73, 76, 0.4);
+  border-radius: 1rem;
+  padding: 1.5rem 2rem;
+  min-width: 520px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
+}
+
+.nav-mega-col { display: flex; flex-direction: column; flex: 1; }
+.nav-mega-heading {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--on-surface-variant);
+  margin-bottom: 0.5rem;
+  padding: 0 0.75rem;
+}
+.nav-mega-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.nav-mega-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.nav-mega-item:hover { background: rgba(255, 255, 255, 0.05); }
+
+.nav-mega-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--surface-container);
+  color: var(--primary);
+  margin-top: 1px;
+}
+
+.nav-mega-text { display: flex; flex-direction: column; gap: 1px; }
+.nav-mega-title { font-size: 0.875rem; font-weight: 500; color: var(--on-surface); }
+.nav-mega-desc  { font-size: 0.75rem; color: var(--on-surface-variant); }
