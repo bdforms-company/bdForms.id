@@ -1,10 +1,18 @@
+import Image from "next/image";
 import Link from "next/link";
 import "./design.css";
 
 const HERO_IMG =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDrFWYLjWMiX0Q2WHYhuCtMG_CuBKigdzinUmpMTqbYvyyq6g1OP2paB0NCgGedQbOr72K43Haqf_PIAuM1s_ckoh4a8lCAm60kZ--RYCDXQ-mRqOiulz4Go0zsNRnkCrb6c3hjups2rjgSxiU0v-2Xp0YNNxCLEYnqaKqMwIcxNKJCN8g8HmJiCZ3tKZ_6XxzqUcNq0Xoo5IrSkLXz0Fnad-TjilzrCg4MiRqtLbq0nM3czrSJg7F7og_PfFI8YJBl_1d-a4LlSaY";
 
-const LOGOS = ["Aceh Hackathon", "Barika Coffee and Space", "Nightcoder", "Egg Geak"];
+// Logo files should be in public/logos/
+const TRUSTED_LOGOS = [
+  { name: "Area Desain", src: "/logos/Logo_Area_Desain.png", invert: false },
+  { name: "Barika", src: "/logos/Logo_Barika.png", invert: false },
+  { name: "EggGeek", src: "/logos/Logo_Eggeek.png", invert: false },
+  { name: "nightCoders", src: "/logos/Logo_Nightcoders.png", invert: true },
+  { name: "Startup Banda Aceh Community", src: "/logos/Logo_Startup_Banda_Aceh_Community.png", invert: false },
+];
 
 const DOCS = [
   {
@@ -144,14 +152,69 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trust marquee */}
-      <section className="overflow-hidden border-y border-white/5 py-16" style={{ background: "rgba(14,14,14,0.5)" }}>
-        <p className="mb-10 text-center text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Dipercaya oleh organizer ternama</p>
+      {/* Trusted organizers */}
+      <section className="overflow-hidden border-y border-white/5 px-6 py-16 md:px-10" style={{ background: "rgba(14,14,14,0.5)" }}>
+        <div className="mx-auto mb-10 max-w-3xl text-center">
+          <h2 className="mb-3 text-2xl font-bold md:text-3xl">Dipercaya oleh komunitas & organisasi terkemuka</h2>
+          <p className="text-sm md:text-base" style={{ color: "var(--on-surface-variant)" }}>Bergabung dengan ratusan penyelenggara event di Aceh dan sekitarnya</p>
+        </div>
         <div className="mask-fade relative">
-          <div className="flex w-max items-center gap-24 whitespace-nowrap animate-scroll">
-            {[...LOGOS, ...LOGOS].map((logo, i) => (
-              <span key={i} className="shrink-0 text-2xl font-semibold opacity-60" style={{ color: "var(--on-surface-variant)" }}>{logo}</span>
+          <div className="flex w-max items-stretch gap-4 whitespace-nowrap animate-scroll">
+            {Array.from({ length: 6 }).flatMap(() => TRUSTED_LOGOS).map((logo, i) => (
+              <div key={`${logo.name}-${i}`} className="glass flex w-56 shrink-0 flex-col items-center justify-center gap-3 rounded-xl px-6 py-4 transition-transform hover:scale-105 md:w-64" style={{ background: "rgba(13,16,16,0.9)", borderColor: "rgba(255,255,255,0.12)" }}>
+                <Image src={logo.src} alt={logo.name} width={160} height={40} className="h-10 w-auto object-contain" style={{ filter: logo.invert ? "brightness(0) invert(1)" : undefined }} />
+                <span className="text-center text-xs" style={{ color: "var(--on-surface-variant)" }}>{logo.name}</span>
+              </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="px-6 py-24 md:px-10" style={{ background: "linear-gradient(180deg, rgba(5,5,5,0.85), rgba(14,14,14,0.55))" }}>
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto mb-14 max-w-3xl text-center">
+            <span className="mb-3 inline-flex rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-widest" style={{ borderColor: "rgba(91,255,161,0.25)", color: "var(--green)", background: "rgba(91,255,161,0.08)" }}>
+              Panduan Cepat
+            </span>
+            <h2 className="mb-4 text-3xl font-bold md:text-4xl">Cara Kerja bdForms dari awal sampai event selesai</h2>
+            <p className="text-sm md:text-base" style={{ color: "var(--on-surface-variant)" }}>
+              Mulai dari login, buat event, bagikan link pendaftaran ke peserta, aktifkan scanner panitia, sampai tutup event dan unduh data peserta.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              { n: "01", i: "login", h: "Login atau daftar akun", p: "Masuk ke dashboard bdForms untuk mulai mengelola event kamu dalam satu tempat." },
+              { n: "02", i: "event", h: "Buat event baru", p: "Isi nama event, jadwal, lokasi, kuota peserta, deadline pendaftaran, dan pilih paket yang sesuai." },
+              { n: "03", i: "dynamic_form", h: "Atur form pendaftaran", p: "Pilih field peserta seperti No. HP, Instansi, Jabatan, NIP/NIM/ID, atau tambahkan pertanyaan custom." },
+              { n: "04", i: "ios_share", h: "Share link pendaftaran", p: "Kirim link pendaftaran ke peserta lewat WhatsApp, Instagram, email, atau media komunitas kamu." },
+              { n: "05", i: "qr_code_scanner", h: "Bagikan link scanner panitia", p: "Berikan link scanner khusus ke panitia registrasi agar check-in QR bisa dilakukan cepat di lokasi event." },
+              { n: "06", i: "monitoring", h: "Pantau dashboard real-time", p: "Lihat jumlah peserta, status kehadiran, dan perkembangan registrasi langsung dari dashboard." },
+              { n: "07", i: "task_alt", h: "Check-in saat event", p: "Panitia scan QR peserta. Sistem tetap siap dipakai untuk alur check-in yang cepat dan rapi." },
+              { n: "08", i: "archive", h: "Tutup event & export data", p: "Setelah selesai, tutup event dan download data peserta untuk laporan atau arsip panitia." },
+            ].map((step) => (
+              <div key={step.n} className="glass group relative overflow-hidden rounded-2xl p-6 transition-transform hover:-translate-y-1" style={{ background: "rgba(13,16,16,0.82)", borderColor: "rgba(255,255,255,0.1)" }}>
+                <div className="absolute right-4 top-4 text-5xl font-black opacity-[0.06]">{step.n}</div>
+                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "rgba(0,224,255,0.1)", color: "var(--primary)" }}>
+                  <span className="material-symbols-outlined">{step.i}</span>
+                </div>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "rgba(91,255,161,0.12)", color: "var(--green)" }}>{step.n}</span>
+                  <h3 className="font-bold">{step.h}</h3>
+                </div>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--on-surface-variant)" }}>{step.p}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link href="/auth/login" className="rounded-xl px-6 py-3 text-sm font-bold neon-green" style={{ background: "var(--green)", color: "var(--on-green)" }}>
+              Mulai Buat Event
+            </Link>
+            <Link href="/pricing" className="rounded-xl border px-6 py-3 text-sm font-bold" style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface)" }}>
+              Lihat Paket Harga
+            </Link>
           </div>
         </div>
       </section>

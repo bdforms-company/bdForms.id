@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/lib/supabase";
-import { PACKAGES, formatPrice } from "@/lib/packages";
+import { PACKAGES, formatDiscount, formatPrice } from "@/lib/packages";
 import "../../design.css";
 
 type PackageId = "starter" | "standard" | "pro" | "enterprise";
@@ -74,7 +74,7 @@ function PackageSelectionContent() {
         <div className="mb-12 text-center">
           <h1 className="mb-4 text-3xl font-bold md:text-4xl">Pilih Paket Event</h1>
           <p className="text-base" style={{ color: "var(--on-surface-variant)" }}>
-            Harga normal: <span style={{ textDecoration: "line-through" }}>Rp 250/orang</span> · Harga diskon sekarang: <span style={{ color: "var(--green)" }}>Rp 175/orang</span>
+            Paket mulai dari <span style={{ color: "var(--green)" }}>Gratis</span> · Standard {formatPrice(225)}/orang · Pro {formatPrice(216)}/orang
           </p>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -99,7 +99,7 @@ function PackageSelectionContent() {
                       {pkg.normalPrice && pkg.normalPrice > (pkg.price || 0) && <p className="mb-1 text-sm" style={{ color: "var(--on-surface-variant)", textDecoration: "line-through" }}>{formatPrice(pkg.normalPrice)}</p>}
                       <div className="mb-2 flex items-center gap-2">
                         <p className="text-3xl font-bold">{formatPrice(pkg.price || 0)}</p>
-                        {pkg.normalPrice && pkg.normalPrice > (pkg.price || 0) && <span className="rounded px-2 py-0.5 text-xs font-bold" style={{ background: "rgba(91,255,161,0.15)", color: "var(--green)" }}>Hemat {Math.round((1 - (pkg.price || 0) / pkg.normalPrice) * 100)}%</span>}
+                        {pkg.discount > 0 && <span className="rounded px-2 py-0.5 text-xs font-bold" style={{ background: "rgba(91,255,161,0.15)", color: "var(--green)" }}>Hemat {formatDiscount(pkg.discount)}%</span>}
                       </div>
                       <p className="text-xs" style={{ color: "var(--on-surface-variant)" }}>({formatPrice(pkg.pricePerPerson)}/orang)</p>
                     </>

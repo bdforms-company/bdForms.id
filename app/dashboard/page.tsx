@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/lib/supabase";
+import { generateNotifications } from "@/lib/notifications";
 import "../design.css";
 
 type EventRow = {
@@ -18,6 +19,9 @@ type EventRow = {
   participant_count?: number;
   package_type?: string;
   package_status?: string;
+  expected_participants?: number | null;
+  registration_deadline?: string | null;
+  created_at?: string | null;
 };
 
 function EventCard({ ev, past }: { ev: EventRow; past?: boolean }) {
@@ -97,6 +101,13 @@ function DashboardContent() {
   const [past, setPast] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [pastOpen, setPastOpen] = useState(true);
+  const [email, setEmail] = useState("");
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [readIds, setReadIds] = useState<string[]>([]);
+  const [nowMs, setNowMs] = useState(0);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const legacyEventId = searchParams.get("eventId");
@@ -112,6 +123,8 @@ function DashboardContent() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || !active) return;
 
+      setEmail(session.user.email || "");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name")
@@ -122,7 +135,7 @@ function DashboardContent() {
 
       const { data: events } = await supabase
         .from("events")
-        .select("id, name, event_date, location, banner_url, status, package_type, package_status")
+        .select("id, name, event_date, location, banner_url, status, package_type, package_status, expected_participants, registration_deadline, created_at")
         .eq("owner_id", session.user.id)
         .order("event_date", { ascending: false });
 
@@ -156,6 +169,25 @@ function DashboardContent() {
     router.push("/");
   };
 
+  useEffect(() => {
+    window.setTimeout(() => {
+      setReadIds(JSON.parse(localStorage.getItem("bdforms_read_notifications") || "[]"));
+      setNowMs(new Date().getTime());
+    }, 0);
+    const onDown = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  const notifications = useMemo(() => generateNotifications([...upcoming, ...past]).map((n) => ({ ...n, read: readIds.includes(n.id) })), [upcoming, past, readIds]);
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const markAllRead = () => { const ids = notifications.map((n) => n.id); localStorage.setItem("bdforms_read_notifications", JSON.stringify(ids)); setReadIds(ids); };
+  const initials = (greeting || email || "U").trim().charAt(0).toUpperCase();
+  const relativeTime = (d: Date) => { const h = Math.floor(((nowMs || d.getTime()) - d.getTime()) / 3600000); if (h < 1) return "baru saja"; if (h < 24) return `${h} jam lalu`; return `${Math.floor(h / 24)} hari lalu`; };
+
   const totalEvents = upcoming.length + past.length;
 
   if (loading) {
@@ -173,21 +205,15 @@ function DashboardContent() {
       <header className="mx-auto mb-10 flex max-w-5xl flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Halo, {greeting}! 👋</h1>
         <div className="flex items-center gap-3">
-          <Link
-            href="/create/package"
-            className="rounded-xl px-5 py-2.5 text-sm font-bold"
-            style={{ background: "var(--green)", color: "var(--on-green)" }}
-          >
-            Buat Event Baru
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border hover:bg-white/5"
-            style={{ borderColor: "var(--outline-variant)" }}
-            aria-label="Logout"
-          >
-            <span className="material-symbols-outlined" style={{ color: "var(--on-surface-variant)" }}>logout</span>
-          </button>
+          <Link href="/create/package" className="rounded-xl px-5 py-2.5 text-sm font-bold" style={{ background: "var(--green)", color: "var(--on-green)" }}>Buat Event Baru</Link>
+          <div className="relative" ref={notifRef}>
+            <button onClick={() => setNotifOpen((v) => !v)} className="relative flex h-10 w-10 items-center justify-center rounded-full border hover:bg-white/5" style={{ borderColor: "var(--outline-variant)" }} aria-label="Notifikasi"><span className="material-symbols-outlined">notifications</span>{unreadCount > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500" />}</button>
+            {notifOpen && <div className="absolute right-0 top-full z-50 mt-3 max-h-96 w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border p-4 shadow-2xl" style={{ background: "rgba(8,10,10,0.98)", borderColor: "rgba(255,255,255,0.14)", boxShadow: "0 24px 80px rgba(0,0,0,0.75)" }}><div className="mb-3 flex items-center justify-between"><h3 className="font-bold">Notifikasi</h3><button onClick={markAllRead} className="text-xs" style={{ color: "var(--green)" }}>Tandai semua dibaca</button></div>{notifications.length===0?<p className="py-8 text-center text-sm" style={{color:"var(--on-surface-variant)"}}>Tidak ada notifikasi</p>:notifications.map((n)=>{const color={success:"var(--green)",warning:"#ffbf00",info:"var(--primary)",error:"var(--error)"}[n.type];return <button key={n.id} onClick={()=>n.eventId&&router.push(`/dashboard/events/${n.eventId}`)} className="flex w-full gap-3 rounded-xl p-3 text-left hover:bg-white/5"><span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{background:color}}/><span className="min-w-0"><span className="block text-sm font-bold">{n.title}</span><span className="line-clamp-2 block text-xs" style={{color:"var(--on-surface-variant)"}}>{n.message}</span><span className="mt-1 block text-[10px]" style={{color:"var(--on-surface-variant)"}}>{relativeTime(n.createdAt)}</span></span></button>})}</div>}
+          </div>
+          <div className="relative" ref={profileRef}>
+            <button onClick={() => setProfileOpen((v) => !v)} className="flex h-9 w-9 items-center justify-center rounded-full font-bold" style={{ background: "var(--green)", color: "var(--on-green)" }}>{initials}</button>
+            {profileOpen && <div className="absolute right-0 top-full z-50 mt-3 min-w-48 rounded-2xl border p-3 shadow-2xl" style={{ background: "rgba(8,10,10,0.98)", borderColor: "rgba(255,255,255,0.14)", boxShadow: "0 24px 80px rgba(0,0,0,0.75)" }}><div className="border-b pb-3 mb-2" style={{borderColor:"rgba(255,255,255,.1)"}}><p className="text-sm font-bold">{greeting}</p><p className="text-xs" style={{color:"var(--on-surface-variant)"}}>{email}</p></div><Link href="/profile" className="block rounded-lg px-3 py-2 text-sm hover:bg-white/5">⚙️ Pengaturan</Link><button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/5">🚪 Keluar</button></div>}
+          </div>
         </div>
       </header>
 

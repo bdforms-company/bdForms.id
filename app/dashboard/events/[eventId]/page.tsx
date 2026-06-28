@@ -30,6 +30,8 @@ type Ev = {
   scanner_token_expires_at: string | null;
   package_type?: string;
   package_status?: string;
+  event_date?: string | null;
+  event_end?: string | null;
 };
 
 type Tab = "pendaftar" | "monitoring" | "scanner";
@@ -58,15 +60,6 @@ function nowDatetimeLocal() {
   return toDatetimeLocal(new Date().toISOString());
 }
 
-function minEventDateAfterDeadline(regDeadline: string) {
-  const dl = new Date(regDeadline);
-  const min = new Date(dl);
-  if (dl.getHours() > 0 || dl.getMinutes() > 0 || dl.getSeconds() > 0 || dl.getMilliseconds() > 0) {
-    min.setDate(min.getDate() + 1);
-  }
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${min.getFullYear()}-${pad(min.getMonth() + 1)}-${pad(min.getDate())}`;
-}
 
 function isTokenValid(expiresAt: string | null) {
   if (!expiresAt) return false;
@@ -98,6 +91,7 @@ function ManageEventInner() {
   const [editExpected, setEditExpected] = useState("");
   const [editRegDeadline, setEditRegDeadline] = useState("");
   const [editEventDate, setEditEventDate] = useState("");
+  const [editEventEnd, setEditEventEnd] = useState("");
   const [editBannerUrl, setEditBannerUrl] = useState<string | null>(null);
   const [editBannerFile, setEditBannerFile] = useState<File | null>(null);
   const [editBannerPreview, setEditBannerPreview] = useState<string | null>(null);
@@ -108,7 +102,7 @@ function ManageEventInner() {
   const [editFieldConfig, setEditFieldConfig] = useState<FieldConfig>(DEFAULT_FIELD_CONFIG);
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    window.setTimeout(() => setOrigin(window.location.origin), 0);
   }, []);
 
   const load = useCallback(async () => {
@@ -116,7 +110,7 @@ function ManageEventInner() {
 
     const { data: evData, error: evError } = await supabase
       .from("events")
-      .select("name, status, owner_id, expected_participants, custom_fields, field_config, scanner_token, scanner_token_expires_at, package_type, package_status")
+      .select("name, status, owner_id, expected_participants, custom_fields, field_config, scanner_token, scanner_token_expires_at, package_type, package_status, event_date, event_end")
       .eq("id", eventId)
       .single();
 
@@ -159,7 +153,7 @@ function ManageEventInner() {
   }, [eventId, router]);
 
   useEffect(() => {
-    load();
+    window.setTimeout(() => { void load(); }, 0);
   }, [load]);
 
   useEffect(() => {
@@ -211,7 +205,7 @@ function ManageEventInner() {
 
     const { data, error } = await supabase
       .from("events")
-      .select("name, expected_participants, registration_deadline, event_date, banner_url, package_type, field_config")
+      .select("name, expected_participants, registration_deadline, event_date, event_end, banner_url, package_type, field_config")
       .eq("id", eventId)
       .single();
 
@@ -222,6 +216,8 @@ function ManageEventInner() {
     }
 
     const now = new Date();
+    const eventStartStr = data.event_date ? toDatetimeLocal(data.event_date) : "";
+    const eventEndStr = data.event_end ? toDatetimeLocal(data.event_end) : "";
     const eventDateStr = data.event_date ? String(data.event_date).split("T")[0] : "";
     const regDl = data.registration_deadline
       ? new Date(data.registration_deadline)
@@ -233,7 +229,8 @@ function ManageEventInner() {
     setEditName(data.name ?? "");
     setEditExpected(data.expected_participants != null ? String(data.expected_participants) : "");
     setEditRegDeadline(data.registration_deadline ? toDatetimeLocal(data.registration_deadline) : "");
-    setEditEventDate(eventDateStr);
+    setEditEventDate(eventStartStr);
+    setEditEventEnd(eventEndStr);
     setEditBannerUrl(data.banner_url ?? null);
     setEditPackageType(data.package_type ?? "");
     setEditFieldConfig(parseFieldConfig(data.field_config));
@@ -302,11 +299,13 @@ function ManageEventInner() {
       setEditError("Deadline pendaftaran tidak boleh di masa lalu.");
       return;
     }
-    if (!editDateFieldsLocked && editEventDate && editRegDeadline) {
-      if (new Date(`${editEventDate}T00:00:00`) <= new Date(editRegDeadline)) {
-        setEditError("Tanggal event harus setelah deadline pendaftaran.");
-        return;
-      }
+    if (!editDateFieldsLocked && editEventDate && editRegDeadline && new Date(editEventDate) <= new Date(editRegDeadline)) {
+      setEditError("Tanggal mulai event harus setelah deadline pendaftaran.");
+      return;
+    }
+    if (!editDateFieldsLocked && editEventDate && editEventEnd && new Date(editEventEnd) <= new Date(editEventDate)) {
+      setEditError("Tanggal selesai harus setelah tanggal mulai.");
+      return;
     }
 
     setEditSaving(true);
@@ -327,7 +326,8 @@ function ManageEventInner() {
       if (!editQuotaLocked) updates.expected_participants = editExpected ? Number(editExpected) : null;
       if (!editDateFieldsLocked) {
         updates.registration_deadline = editRegDeadline ? new Date(editRegDeadline).toISOString() : null;
-        updates.event_date = editEventDate || null;
+        updates.event_date = editEventDate ? new Date(editEventDate).toISOString() : null;
+        updates.event_end = editEventEnd ? new Date(editEventEnd).toISOString() : null;
       }
       if (list.length === 0) updates.field_config = editFieldConfig;
 
@@ -691,6 +691,8 @@ function ManageEventInner() {
           setEditRegDeadline={setEditRegDeadline}
           editEventDate={editEventDate}
           setEditEventDate={setEditEventDate}
+          editEventEnd={editEventEnd}
+          setEditEventEnd={setEditEventEnd}
           editBannerUrl={editBannerUrl}
           editBannerPreview={editBannerPreview}
           editBannerFile={editBannerFile}
@@ -816,7 +818,7 @@ function ParticipantList({
 function EditEventModal({
   editLoading, editName, setEditName, editExpected, setEditExpected,
   editPackageType, editFieldConfig, setEditFieldConfig,
-  editRegDeadline, setEditRegDeadline, editEventDate, setEditEventDate,
+  editRegDeadline, setEditRegDeadline, editEventDate, setEditEventDate, editEventEnd, setEditEventEnd,
   editBannerUrl, editBannerPreview, compressingBanner, editQuotaLocked,
   editDateFieldsLocked, editError, editSaving, listLength,
   onClose, onSave, onBannerChange, onClearBannerPreview,
@@ -833,6 +835,8 @@ function EditEventModal({
   setEditRegDeadline: (v: string) => void;
   editEventDate: string;
   setEditEventDate: (v: string) => void;
+  editEventEnd: string;
+  setEditEventEnd: (v: string) => void;
   editBannerUrl: string | null;
   editBannerPreview: string | null;
   editBannerFile: File | null;
@@ -914,10 +918,14 @@ function EditEventModal({
             </div>
             <div>
               <label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
-                Tanggal Event
+                Tanggal Mulai
                 {editDateFieldsLocked && <span className="normal-case tracking-normal" style={{ fontSize: "11px" }}>🔒 Tidak bisa diubah</span>}
               </label>
-              <input type="date" value={editEventDate} onChange={(e) => setEditEventDate(e.target.value)} disabled={editDateFieldsLocked} min={editDateFieldsLocked ? undefined : editRegDeadline ? minEventDateAfterDeadline(editRegDeadline) : undefined} className="bd-input w-full rounded-lg px-4 py-3 disabled:opacity-60" style={{ colorScheme: "dark" }} />
+              <input type="datetime-local" value={editEventDate} onChange={(e) => setEditEventDate(e.target.value)} disabled={editDateFieldsLocked} min={editDateFieldsLocked ? undefined : editRegDeadline || undefined} className="bd-input w-full rounded-lg px-4 py-3 disabled:opacity-60" style={{ colorScheme: "dark" }} />
+            </div>
+            <div>
+              <label className="mb-1 flex items-center justify-between text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Tanggal Selesai {editDateFieldsLocked && <span style={{ color: "var(--error)", fontSize: "11px" }}>🔒 Tidak bisa diubah</span>}</label>
+              <input type="datetime-local" value={editEventEnd} onChange={(e) => setEditEventEnd(e.target.value)} disabled={editDateFieldsLocked} min={editEventDate || undefined} className="bd-input w-full rounded-lg px-4 py-3 disabled:opacity-60" style={{ colorScheme: "dark" }} />
             </div>
             <div className="my-2 border-t pt-5" style={{ borderColor: "var(--outline-variant)" }}>
               <h4 className="mb-2 text-sm font-bold">Konfigurasi Field Pendaftaran</h4>
@@ -948,6 +956,10 @@ function EditEventModal({
                     </div>
                   );
                 })}
+              </div>
+              <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--outline-variant)" }}>
+                <div className="mb-3 flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Pertanyaan Custom (max 2)</p>{!fieldConfigLocked && editFieldConfig.customQuestions.length < 2 && <button type="button" onClick={() => setEditFieldConfig({ ...editFieldConfig, customQuestions: [...editFieldConfig.customQuestions, { id: crypto.randomUUID(), label: "", required: false }] })} className="rounded-lg border px-3 py-1 text-xs" style={{ borderColor: "var(--outline-variant)" }}>+ Tambah</button>}</div>
+                {editFieldConfig.customQuestions.map((q, qi) => <div key={q.id} className="mb-2 flex items-center gap-2"><input disabled={fieldConfigLocked} value={q.label} onChange={(e)=>{const customQuestions=[...editFieldConfig.customQuestions];customQuestions[qi]={...q,label:e.target.value};setEditFieldConfig({...editFieldConfig,customQuestions});}} placeholder="Tulis pertanyaan..." className="bd-input flex-1 rounded-lg px-3 py-2 text-sm disabled:opacity-60"/><button type="button" disabled={fieldConfigLocked} onClick={()=>{const customQuestions=[...editFieldConfig.customQuestions];customQuestions[qi]={...q,required:!q.required};setEditFieldConfig({...editFieldConfig,customQuestions});}} className="relative inline-flex h-6 w-11 rounded-full disabled:opacity-40" style={{ background: q.required ? "var(--green)" : "#1e2a2c" }}><span className="h-[18px] w-[18px] rounded-full bg-white transition-transform" style={{ transform: q.required ? "translate(23px, 3px)" : "translate(3px, 3px)" }} /></button><button type="button" disabled={fieldConfigLocked} onClick={()=>setEditFieldConfig({...editFieldConfig,customQuestions:editFieldConfig.customQuestions.filter((_,i)=>i!==qi)})} className="rounded-lg p-2 disabled:opacity-40"><span className="material-symbols-outlined text-base" style={{color:"var(--error)"}}>delete</span></button></div>)}
               </div>
             </div>
             {editError && <p className="text-sm" style={{ color: "var(--error)" }}>{editError}</p>}
