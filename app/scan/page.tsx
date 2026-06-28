@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useScannerStore } from "@/store/useScannerStore";
 import "../design.css";
 
-type UiState = "loading" | "invalid" | "not_yet" | "ended" | "ready" | "scanning" | "verified" | "duplicate" | "notfound";
+type UiState = "loading" | "invalid" | "token_invalid" | "not_yet" | "ended" | "ready" | "scanning" | "verified" | "duplicate" | "notfound";
 
 function getScannerWindow(eventDate: string) {
   const windowStart = new Date(`${eventDate}T00:00:00`);
@@ -56,14 +56,42 @@ export default function ScanPage() {
   const lockRef = useRef(false);
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("eventId");
-    setEventId(id);
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const idParam = params.get("eventId");
+
+    if (token) {
+      supabase
+        .from("events")
+        .select("id")
+        .eq("scanner_token", token)
+        .gt("scanner_token_expires_at", new Date().toISOString())
+        .eq("status", "active")
+        .single()
+        .then(({ data }) => {
+          if (data?.id) {
+            setEventId(data.id);
+          } else {
+            setEventId(null);
+            setUi("token_invalid");
+          }
+        });
+      return;
+    }
+
+    if (idParam) {
+      setEventId(idParam);
+      return;
+    }
+
+    setEventId(null);
+    setUi("invalid");
   }, []);
 
   useEffect(() => {
     if (eventId === undefined) return;
     if (!eventId) {
-      setUi("invalid");
+      if (ui !== "token_invalid") setUi("invalid");
       return;
     }
     let active = true;
@@ -173,6 +201,18 @@ export default function ScanPage() {
     return (
       <div className="bd flex min-h-screen items-center justify-center">
         <p style={{ color: "var(--on-surface-variant)" }}>Memuat data peserta...</p>
+      </div>
+    );
+  }
+
+  if (ui === "token_invalid") {
+    return (
+      <div className="bd flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <span className="material-symbols-outlined text-6xl" style={{ color: "var(--error)" }}>link_off</span>
+        <h1 className="text-2xl font-bold">Link Scanner Tidak Valid</h1>
+        <p className="max-w-sm text-sm" style={{ color: "var(--on-surface-variant)" }}>
+          Link ini sudah expired atau tidak valid. Minta link baru dari penyelenggara event.
+        </p>
       </div>
     );
   }

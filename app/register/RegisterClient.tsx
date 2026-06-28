@@ -6,11 +6,12 @@ import Link from "next/link";
 import html2canvas from "html2canvas-pro";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "@/lib/supabase";
-import type { CustomField } from "@/lib/types";
+import type { CustomField, FieldConfig } from "@/lib/types";
+import { DEFAULT_FIELD_CONFIG, PRESET_FIELDS, parseFieldConfig } from "@/lib/types";
 import { SignaturePad, type SignaturePadHandle } from "@/components/SignaturePad";
 import "../design.css";
 
-type Result = { name: string; qr_token: string };
+type Result = { id: string; name: string; qr_token: string };
 
 export default function RegisterClient() {
   const sigRef = useRef<SignaturePadHandle>(null);
@@ -28,7 +29,13 @@ export default function RegisterClient() {
   const [emailStatus, setEmailStatus] = useState<"sent" | "failed" | null>(null);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customData, setCustomData] = useState<Record<string, string>>({});
+  const [fieldConfig, setFieldConfig] = useState<FieldConfig>(DEFAULT_FIELD_CONFIG);
+  const [extraData, setExtraData] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [showSignupBanner, setShowSignupBanner] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const emailSentRef = useRef(false);
+  const autoDownloadedRef = useRef(false);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("eventId");
@@ -57,7 +64,7 @@ export default function RegisterClient() {
     let active = true;
     supabase
       .from("events")
-      .select("name, banner_url, event_date, registration_deadline, custom_fields")
+      .select("name, banner_url, event_date, registration_deadline, custom_fields, field_config")
       .eq("id", eventId)
       .single()
       .then(({ data }) => {
@@ -66,6 +73,7 @@ export default function RegisterClient() {
         if (data.name) setEventName(data.name);
         const fields = Array.isArray(data.custom_fields) ? (data.custom_fields as CustomField[]) : [];
         setCustomFields(fields);
+        setFieldConfig(parseFieldConfig(data.field_config));
 
         const deadline = data.registration_deadline
           ? new Date(data.registration_deadline)
@@ -152,8 +160,31 @@ export default function RegisterClient() {
     sendTicket();
   }, [result, email, eventName, eventId, bannerUrl]);
 
+  const downloadTicket = async () => {
+    const el = document.getElementById("ticket-card");
+    if (!el || !result) return;
+    const canvas = await html2canvas(el);
+    const dataUrl = canvas.toDataURL("image/png");
+    const safeName = result.name.trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "_") || "peserta";
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `Tiket_${safeName}.png`;
+    link.click();
+  };
+
+  useEffect(() => {
+    if (!result || autoDownloadedRef.current) return;
+    autoDownloadedRef.current = true;
+    const timer = setTimeout(() => {
+      downloadTicket();
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
   const handleSubmit = async () => {
     setError(null);
+    setFieldErrors({});
     if (!eventId) {
       setError("Link pendaftaran tidak valid.");
       return;
@@ -162,6 +193,25 @@ export default function RegisterClient() {
       setError("Nama wajib diisi.");
       return;
     }
+
+    const errors: Record<string, string> = {};
+    for (const field of PRESET_FIELDS) {
+      const cfg = fieldConfig[field.key];
+      if (cfg.enabled && cfg.required && !extraData[field.key]?.trim()) {
+        errors[field.key] = `${field.label} wajib diisi.`;
+      }
+    }
+    for (const q of fieldConfig.customQuestions) {
+      if (q.required && !extraData[q.id]?.trim()) {
+        errors[q.id] = `${q.label || "Pertanyaan"} wajib diisi.`;
+      }
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError("Lengkapi field yang wajib diisi.");
+      return;
+    }
+
     if (sigRef.current?.isEmpty()) {
       setError("Tanda tangan dulu ya.");
       return;
@@ -191,12 +241,21 @@ export default function RegisterClient() {
           email: email.trim() || null,
           signature_url: signature,
           custom_data: customData,
+          extra_data: extraData,
         })
-        .select("name, qr_token")
+        .select("id, name, qr_token")
         .single();
 
       if (error) throw error;
-      setResult(data as Result);
+
+      const participant = data as Result;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.from("participants").update({ user_id: session.user.id }).eq("id", participant.id);
+        setIsLoggedIn(true);
+      }
+
+      setResult(participant);
     } catch (e) {
       console.error("Register error:", e);
       const msg =
@@ -338,23 +397,35 @@ export default function RegisterClient() {
             )}
             <button
               type="button"
-              onClick={async () => {
-                const el = document.getElementById("ticket-card");
-                if (!el) return;
-                const canvas = await html2canvas(el);
-                const dataUrl = canvas.toDataURL("image/png");
-                const safeName = result.name.trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "_") || "peserta";
-                const link = document.createElement("a");
-                link.href = dataUrl;
-                link.download = `Tiket_${safeName}.png`;
-                link.click();
-              }}
+              onClick={downloadTicket}
               className="mx-auto mb-6 flex w-full max-w-[320px] items-center justify-center gap-2 rounded-xl border py-3 font-bold transition-colors hover:bg-white/5"
               style={{ borderColor: "var(--outline-variant)" }}
             >
               <span className="material-symbols-outlined">download</span>
               Download Tiket
             </button>
+            {!isLoggedIn && showSignupBanner && (
+              <div className="rounded-xl border p-4 text-left" style={{ borderColor: "rgba(91,255,161,0.4)" }}>
+                <p className="mb-3 text-sm">💡 Buat akun gratis untuk simpan riwayat event yang kamu ikuti</p>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/auth/signup"
+                    className="rounded-lg border px-4 py-2 text-sm font-medium"
+                    style={{ borderColor: "var(--green)", color: "var(--green)" }}
+                  >
+                    Buat Akun
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setShowSignupBanner(false)}
+                    className="text-sm underline"
+                    style={{ color: "var(--on-surface-variant)" }}
+                  >
+                    Lewati
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -373,6 +444,63 @@ export default function RegisterClient() {
                   💌 Isi email biar tiket QR otomatis dikirim ke inbox kamu sebagai cadangan.
                 </p>
               </div>
+              {PRESET_FIELDS.map((field) => {
+                const cfg = fieldConfig[field.key];
+                if (!cfg.enabled) return null;
+                return (
+                  <div key={field.key}>
+                    <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
+                      {field.label}{cfg.required ? " *" : ""}
+                    </label>
+                    <input
+                      type={field.type}
+                      value={extraData[field.key] ?? ""}
+                      onChange={(e) => {
+                        setExtraData((prev) => ({ ...prev, [field.key]: e.target.value }));
+                        if (fieldErrors[field.key]) {
+                          setFieldErrors((prev) => {
+                            const next = { ...prev };
+                            delete next[field.key];
+                            return next;
+                          });
+                        }
+                      }}
+                      placeholder={field.placeholder}
+                      required={cfg.required}
+                      className="bd-input w-full rounded-lg p-3"
+                    />
+                    {fieldErrors[field.key] && (
+                      <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors[field.key]}</p>
+                    )}
+                  </div>
+                );
+              })}
+              {fieldConfig.customQuestions.map((q) => (
+                <div key={q.id}>
+                  <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
+                    {q.label || "Pertanyaan"}{q.required ? " *" : ""}
+                  </label>
+                  <input
+                    type="text"
+                    value={extraData[q.id] ?? ""}
+                    onChange={(e) => {
+                      setExtraData((prev) => ({ ...prev, [q.id]: e.target.value }));
+                      if (fieldErrors[q.id]) {
+                        setFieldErrors((prev) => {
+                          const next = { ...prev };
+                          delete next[q.id];
+                          return next;
+                        });
+                      }
+                    }}
+                    required={q.required}
+                    className="bd-input w-full rounded-lg p-3"
+                  />
+                  {fieldErrors[q.id] && (
+                    <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors[q.id]}</p>
+                  )}
+                </div>
+              ))}
               {customFields.map((field) => (
                 <div key={field.id}>
                   <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>

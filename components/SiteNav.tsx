@@ -1,4 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 type NavPage = "product" | "pricing";
 
@@ -81,6 +85,14 @@ function MegaTrigger({ label }: { label: string }) {
 }
 
 export function SiteNav({ active = "product" }: { active?: NavPage }) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+    });
+  }, []);
+
   const linkClass = "text-sm font-medium hover:opacity-80";
   const muted = { color: "var(--on-surface-variant)" } as const;
   const activeStyle = { color: "var(--green)", borderColor: "var(--green)" } as const;
@@ -130,17 +142,17 @@ export function SiteNav({ active = "product" }: { active?: NavPage }) {
         </div>
 
         <div className="flex items-center gap-4 sm:gap-6">
-          <button
-            type="button"
-            disabled
-            className="cursor-not-allowed text-sm opacity-45"
-            style={{ color: "var(--on-surface-variant)" }}
-            title="Coming soon"
-          >
-            Login
-          </button>
+          {isLoggedIn ? (
+            <Link href="/dashboard" className={linkClass} style={muted}>
+              Dashboard
+            </Link>
+          ) : (
+            <Link href="/auth/login" className={linkClass} style={muted}>
+              Login
+            </Link>
+          )}
           <Link
-            href="/create"
+            href={isLoggedIn ? "/dashboard" : "/auth/login"}
             className="rounded-full px-5 py-2.5 text-sm font-bold neon-green sm:px-6"
             style={{ background: "var(--green)", color: "var(--on-green)" }}
           >

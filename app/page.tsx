@@ -97,7 +97,7 @@ export default function LandingPage() {
           <Link href="/pricing" className="text-sm font-medium hover:opacity-80" style={{ color: "var(--on-surface-variant)" }}>Pricing</Link>
         </div>
         <div className="flex items-center gap-6">
-          <Link href="/create" className="hidden text-sm hover:opacity-80 sm:block" style={{ color: "var(--on-surface-variant)" }}>Login</Link>
+          <Link href="/auth/login" className="hidden text-sm hover:opacity-80 sm:block" style={{ color: "var(--on-surface-variant)" }}>Login</Link>
           <Link href="/create" className="rounded-full px-6 py-2.5 text-sm font-bold neon-green" style={{ background: "var(--green)", color: "var(--on-green)" }}>Get Started</Link>
         </div>
       </nav>
@@ -117,9 +117,8 @@ export default function LandingPage() {
           <p className="mx-auto mb-12 max-w-2xl text-base md:text-lg" style={{ color: "var(--on-surface-variant)" }}>
             Sistem registrasi event termutakhir di Indonesia. Tanpa antrian, tanpa kendala sinyal, dan proses validasi instan untuk pengalaman tamu yang eksklusif.
           </p>
-          <div className="mb-20 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/create" className="rounded-xl px-8 py-4 text-base font-bold neon-cyan" style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}>Start Free Trial</Link>
-            <Link href="/pricing" className="rounded-xl border px-8 py-4 text-base font-bold transition-colors hover:bg-white/5" style={{ borderColor: "var(--outline-variant)" }}>Book a Demo</Link>
+          <div className="mb-20 flex justify-center">
+            <Link href="/auth/login" className="rounded-xl px-8 py-4 text-base font-bold neon-cyan" style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}>Start Free Trial</Link>
           </div>
           <div className="relative mx-auto max-w-5xl overflow-hidden rounded-2xl border shadow-2xl" style={{ borderColor: "rgba(59,73,76,0.3)" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -179,6 +178,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+
 
       {/* Footer */}
       <footer className="border-t border-white/5 px-6 py-20 md:px-10" style={{ background: "var(--surface-lowest)" }}>
