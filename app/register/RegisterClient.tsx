@@ -15,7 +15,8 @@ type Result = { id: string; name: string; qr_token: string };
 
 export default function RegisterClient() {
   const sigRef = useRef<SignaturePadHandle>(null);
-  const [eventId, setEventId] = useState<string | null | undefined>(undefined);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,8 +39,8 @@ export default function RegisterClient() {
   const autoDownloadedRef = useRef(false);
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("eventId");
-    setEventId(id);
+    setEventId(new URLSearchParams(window.location.search).get("eventId"));
+    setMounted(true);
   }, []);
 
   // cek limit: true kalau kuota sudah penuh
@@ -270,6 +271,15 @@ export default function RegisterClient() {
     }
   };
 
+  // ===== Belum mount (server/client sama-sama null) =====
+  if (!mounted) {
+    return (
+      <div className="bd flex min-h-screen items-center justify-center">
+        <p style={{ color: "var(--on-surface-variant)" }}>Memuat...</p>
+      </div>
+    );
+  }
+
   // ===== Link tidak valid =====
   if (eventId === null) {
     return (
@@ -357,32 +367,40 @@ export default function RegisterClient() {
                   width: "100%",
                   maxWidth: 320,
                   padding: 32,
+                  paddingBottom: 0,
                   borderRadius: 16,
-                  backgroundColor: "#0a0c0c",
-                  color: "#e8eaed",
+                  backgroundColor: "#FFFFFF",
+                  color: "#0A0F1E",
                   margin: "0 auto 24px",
                   textAlign: "center",
                   boxSizing: "border-box",
                   fontFamily: "system-ui, sans-serif",
+                  border: "2px solid #0066FF",
+                  boxShadow: "0 4px 24px rgba(0,102,255,0.15)",
+                  overflow: "hidden",
                 }}
               >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                <span style={{ fontSize: 12, color: "#8a9299", fontWeight: 600 }}>⬡ bdForms</span>
-                <span style={{ fontSize: 12, color: "#8a9299", fontWeight: 500, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {eventName || "Event"}
-                </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="bdForms" width={32} height={32} style={{ objectFit: "contain" }} />
+                <span style={{ color: "#0066FF", fontWeight: "bold", fontSize: 16 }}>bdForms</span>
               </div>
-              <div style={{ height: 1, backgroundColor: "#1e2a2c", marginBottom: 24 }} />
-              <div style={{ display: "inline-block", backgroundColor: "#ffffff", padding: "12px", borderRadius: 8, marginBottom: 20 }}>
+              <p style={{ fontSize: 11, color: "#5A6580", textTransform: "uppercase", letterSpacing: 1.5, margin: "0 0 16px", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {eventName || "Event"}
+              </p>
+              <div style={{ height: 1, backgroundColor: "#E0E8FF", marginBottom: 24 }} />
+              <div style={{ display: "inline-block", backgroundColor: "#ffffff", padding: "12px", borderRadius: 12, border: "1px solid #E0E8FF", marginBottom: 20 }}>
                 <QRCodeCanvas value={result.qr_token} size={180} />
               </div>
-              <p style={{ fontSize: 20, fontWeight: 700, color: "#e8eaed", margin: "0 0 20px" }}>{result.name}</p>
-              <p style={{ fontSize: 10, color: "#8a9299", letterSpacing: 2, textTransform: "uppercase", margin: "0 0 4px" }}>KODE CADANGAN</p>
-              <p style={{ fontSize: 28, fontWeight: 700, fontFamily: "monospace", letterSpacing: 4, color: "#5bffa1", margin: "0 0 24px" }}>
+              <p style={{ fontSize: 20, fontWeight: 700, color: "#0A0F1E", margin: "0 0 20px" }}>{result.name}</p>
+              <p style={{ fontSize: 10, color: "#5A6580", letterSpacing: 2, textTransform: "uppercase", margin: "0 0 4px" }}>KODE CADANGAN</p>
+              <p style={{ fontSize: 28, fontWeight: 700, fontFamily: "monospace", letterSpacing: 4, color: "#0066FF", margin: "0 0 24px" }}>
                 {result.qr_token.slice(-6).toUpperCase()}
               </p>
-              <div style={{ height: 1, backgroundColor: "#1e2a2c", marginBottom: 16 }} />
-              <p style={{ fontSize: 12, color: "#8a9299", margin: 0 }}>Tunjukkan QR ini saat check-in</p>
+              <div style={{ margin: "0 -32px", padding: "16px 32px", backgroundColor: "#F8FAFF" }}>
+                <p style={{ fontSize: 12, color: "#5A6580", margin: "0 0 4px" }}>Tunjukkan QR ini saat check-in</p>
+                <p style={{ fontSize: 11, color: "#0066FF", fontWeight: 600, margin: 0 }}>bdForms</p>
+              </div>
               </div>
             </div>
             {email.trim() && emailStatus === "sent" && (

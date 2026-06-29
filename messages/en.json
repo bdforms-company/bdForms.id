@@ -1,0 +1,73 @@
+{
+  "nav": {
+    "howItWorks": "How It Works",
+    "pricing": "Pricing",
+    "features": "Features",
+    "faq": "FAQ",
+    "getStarted": "Get Started",
+    "login": "Login"
+  },
+  "hero": {
+    "badge": "#1 Event Registration Platform in Aceh",
+    "title": "Event Registration Without Queues,",
+    "titleAccent": "In 3 Seconds.",
+    "subtitle": "Offline-first registration system with instant QR check-in. From campus seminars to government events.",
+    "ctaPrimary": "Start Free",
+    "ctaSecondary": "See How It Works"
+  },
+  "stats": {
+    "checkin": "Check-in",
+    "checkinValue": "< 3 Seconds",
+    "setup": "Event Setup",
+    "setupValue": "< 30 Seconds",
+    "offline": "Offline-First",
+    "offlineValue": "100%"
+  },
+  "features": {
+    "title": "Everything you need for a successful event",
+    "subtitle": "One platform for registration, check-in, and attendee monitoring."
+  },
+  "howItWorks": {
+    "title": "How bdForms Works",
+    "subtitle": "From event creation to check-in, all in one platform."
+  },
+  "pricing": {
+    "title": "Transparent Pricing, No Hidden Fees",
+    "subtitle": "Start free, upgrade as you grow."
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Can't find an answer? Contact us via WhatsApp."
+  },
+  "cta": {
+    "title": "Ready to eliminate registration queues?",
+    "subtitle": "Join event organizers who have switched to a faster system.",
+    "primary": "Start Free Now",
+    "secondary": "Contact Us"
+  },
+  "footer": {
+    "tagline": "Fast-Track Event Registration Platform",
+    "copyright": "© 2026 bdForms. All rights reserved."
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "loginWithGoogle": "Sign in with Google",
+    "signupWithGoogle": "Sign up with Google"
+  },
+  "dashboard": {
+    "greeting": "Hello",
+    "createEvent": "Create New Event",
+    "myEvents": "My Events",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "noEvents": "No events yet",
+    "noEventsDesc": "Create your first event and start accepting registrations!",
+    "manageEvent": "Manage Event"
+  }
+}

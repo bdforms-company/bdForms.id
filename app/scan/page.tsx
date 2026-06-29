@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/lib/supabase";
 import { useScannerStore } from "@/store/useScannerStore";
+import { Switch } from "@/components/ui/switch"; // Import the Switch component
 import "../design.css";
 
 type UiState = "loading" | "invalid" | "token_invalid" | "not_yet" | "ended" | "ready" | "scanning" | "verified" | "duplicate" | "notfound";
@@ -15,6 +16,19 @@ function getScannerWindow(eventDate: string) {
   windowEnd.setDate(windowEnd.getDate() + 1);
   windowEnd.setHours(23, 59, 59, 999);
   return { windowStart, windowEnd };
+}
+
+function getInitialEventId(): string | null | undefined {
+  if (typeof window === "undefined") return undefined;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("token")) return undefined;
+  return params.get("eventId");
+}
+
+function getInitialUi(): UiState {
+  if (typeof window === "undefined") return "loading";
+  const params = new URLSearchParams(window.location.search);
+  return params.get("token") || params.get("eventId") ? "loading" : "invalid";
 }
 
 function LiveClock() {
@@ -45,20 +59,108 @@ export default function ScanPage() {
     reset,
   } = useScannerStore();
 
-  const [eventId, setEventId] = useState<string | null | undefined>(undefined);
-  const [ui, setUi] = useState<UiState>("loading");
+  const [eventId, setEventId] = useState<string | null | undefined>(getInitialEventId);
+  const [ui, setUi] = useState<UiState>(getInitialUi);
   const [manual, setManual] = useState("");
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [eventName, setEventName] = useState("");
   const [eventDateLabel, setEventDateLabel] = useState("");
+  const [autoScan, setAutoScan] = useState(false); // New state for Auto-scan Mode
+
+  // Load autoScan preference from localStorage
+  useEffect(() => {
+    const storedAutoScan = localStorage.getItem("bdforms_autoscan");
+    if (storedAutoScan !== null) {
+      setAutoScan(JSON.parse(storedAutoScan));
+    }
+  }, []);
+
+  // Persist autoScan preference to localStorage
+  useEffect(() => {
+    localStorage.setItem("bdforms_autoscan", JSON.stringify(autoScan));
+  }, [autoScan]);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lockRef = useRef(false);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" | "warning" }[]>([]);
+
+  const showToast = useCallback((message: string, type: "success" | "error" | "info" | "warning" = "success", duration = 3000) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, duration);
+  }, []);
+
+  const [verifiedCount, setVerifiedCount] = useState(0);
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [notFoundCount, setNotFoundCount] = useState(0);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const qrReaderDivRef = useRef<HTMLDivElement>(null);
+
+
+  const handleToken = useCallback((raw: string) => {
+    if (lockRef.current) return; // Prevent double scanning during cooldown
+
+    const token = raw.trim();
+    const participant = participants[token];
+    const result = validateScan(token);
+    processCheckIn(token);
+
+    if (autoScan) {
+      if (result === "VERIFIED") {
+        showToast(`✓ ${participant?.name || "Participant"} — Check-in Berhasil`, "success", 2000);
+        setVerifiedCount(prev => prev + 1);
+        if (qrReaderDivRef.current) {
+          qrReaderDivRef.current.classList.add('flash-green');
+          setTimeout(() => {
+            qrReaderDivRef.current?.classList.remove('flash-green');
+          }, 300);
+        }
+      } else if (result === "DUPLICATE") {
+        showToast(`⚠ Sudah Check-in — ${participant?.name || "Participant"}`, "error", 3000);
+        setDuplicateCount(prev => prev + 1);
+      } else { // NOTFOUND
+        showToast("✗ QR Tidak Dikenali", "info", 2000);
+        setNotFoundCount(prev => prev + 1);
+      }
+
+      // Implement cooldown
+      lockRef.current = true;
+      setCooldown(1); // Start 1-second cooldown
+      cooldownTimerRef.current = setInterval(() => {
+        setCooldown(prev => {
+          if (prev <= 0) {
+            clearInterval(cooldownTimerRef.current!);
+            lockRef.current = false;
+            return 0;
+          }
+          return prev - 0.1;
+        });
+      }, 100);
+
+      // Immediately reset for next scan in autoScan mode
+      // setUi("scanning"); // Already in scanning state, no need to change
+    } else {
+      if (result === "VERIFIED") setUi("verified");
+      else if (result === "DUPLICATE") setUi("duplicate");
+      else setUi("notfound");
+    }
+  }, [showToast, autoScan, validateScan, processCheckIn, participants]);
+
+  // Cooldown effect cleanup
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearInterval(cooldownTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
-    const idParam = params.get("eventId");
 
     if (token) {
       supabase
@@ -76,24 +178,11 @@ export default function ScanPage() {
             setUi("token_invalid");
           }
         });
-      return;
     }
-
-    if (idParam) {
-      setEventId(idParam);
-      return;
-    }
-
-    setEventId(null);
-    setUi("invalid");
   }, []);
 
   useEffect(() => {
-    if (eventId === undefined) return;
-    if (!eventId) {
-      if (ui !== "token_invalid") setUi("invalid");
-      return;
-    }
+    if (eventId === undefined || !eventId) return;
     let active = true;
 
     const init = async () => {
@@ -142,18 +231,34 @@ export default function ScanPage() {
     };
   }, [eventId, fetchInitialData]);
 
+  // Keep handleToken in a ref so scanner useEffect doesn't restart when handleToken changes
+  const handleTokenRef = useRef(handleToken);
   useEffect(() => {
-    if (ui !== "scanning") return;
+    handleTokenRef.current = handleToken;
+  }, [handleToken]);
+
+  useEffect(() => {
+    if (ui !== "scanning") {
+      // Ensure scanner stops if UI state changes from scanning
+      const inst = scannerRef.current;
+      if (inst) inst.stop().then(() => inst.clear()).catch(() => {});
+      scannerRef.current = null;
+      return;
+    }
+
     lockRef.current = false;
     const qr = new Html5Qrcode("qr-reader");
     scannerRef.current = qr;
+
+    const qrboxConfig = autoScan
+      ? { width: window.innerWidth * 0.8, height: window.innerHeight * 0.6 }
+      : { width: 300, height: 300 };
+
     qr.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
+      { fps: 10, qrbox: qrboxConfig },
       (decoded) => {
-        if (lockRef.current) return;
-        lockRef.current = true;
-        handleToken(decoded);
+        handleTokenRef.current(decoded);
       },
       () => {}
     ).catch((err) => {
@@ -166,17 +271,7 @@ export default function ScanPage() {
       scannerRef.current = null;
       if (inst) inst.stop().then(() => inst.clear()).catch(() => {});
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui]);
-
-  const handleToken = (raw: string) => {
-    const token = raw.trim();
-    const result = validateScan(token);
-    processCheckIn(token);
-    if (result === "VERIFIED") setUi("verified");
-    else if (result === "DUPLICATE") setUi("duplicate");
-    else setUi("notfound");
-  };
+  }, [ui, autoScan]);
 
   const submitManual = () => {
     const code = manual.trim().toLowerCase();
@@ -192,6 +287,13 @@ export default function ScanPage() {
   const backToReady = () => {
     reset();
     setManual("");
+    setVerifiedCount(0);
+    setDuplicateCount(0);
+    setNotFoundCount(0);
+    if (scannerRef.current) {
+      scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(() => {});
+      scannerRef.current = null;
+    }
     setUi("ready");
   };
 
@@ -264,13 +366,105 @@ export default function ScanPage() {
   }
 
   if (ui === "scanning") {
-    return (
-      <div className="bd flex min-h-screen flex-col items-center gap-4 px-4 pt-16">
-        <h1 className="text-xl font-bold">Arahkan kamera ke QR</h1>
-        <div id="qr-reader" className="glass w-full max-w-sm overflow-hidden rounded-2xl" />
-        <button onClick={backToReady} className="rounded-lg border px-6 py-2" style={{ borderColor: "var(--outline-variant)" }}>Batal</button>
-      </div>
-    );
+    if (autoScan) {
+      return (
+        <div className="fixed inset-0 bg-black flex items-center justify-center">
+          <button
+            onClick={backToReady}
+            className="absolute top-4 right-4 rounded-full p-2 text-white z-50"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+          >
+            ✕ Keluar Auto-Scan
+          </button>
+          <div
+            id="qr-reader"
+            ref={qrReaderDivRef}
+            className="w-[80vw] h-[60vh] border-8 border-transparent rounded-2xl overflow-hidden relative"
+            style={{ boxShadow: "0 0 0 100vmax rgba(0,0,0,0.7)", animation: (cooldown > 0 && ui === "scanning") ? `flash-cooldown ${cooldown * 1000}ms linear forwards` : 'none' }}
+          >
+            {cooldown > 0 && (
+              <div className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold z-10" style={{ backdropFilter: 'blur(2px)', background: 'rgba(0,0,0,0.3)' }}>
+                {Math.ceil(cooldown)}
+              </div>
+            )}
+          </div>
+          {/* Stats bar */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-black bg-opacity-70 text-white text-center flex justify-around text-lg">
+            <span>✓ {verifiedCount} Check-in</span>
+            <span>⚠ {duplicateCount} Duplikat</span>
+            <span>✗ {notFoundCount} Tidak Dikenali</span>
+          </div>
+          {/* Toast Container */}
+          <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+            {toasts.map((toast) => (
+              <div
+                key={toast.id}
+                className="animate-slide-in rounded-lg px-4 py-3 shadow-lg border text-sm font-medium flex items-center justify-between text-white transition-all duration-300 pointer-events-auto"
+                style={{
+                  background:
+                    toast.type === "success"
+                      ? "rgba(91, 255, 161, 0.15)"
+                      : toast.type === "error"
+                      ? "rgba(255, 180, 171, 0.15)"
+                      : "rgba(255, 255, 255, 0.1)",
+                  borderColor:
+                    toast.type === "success"
+                      ? "rgba(91, 255, 161, 0.4)"
+                      : toast.type === "error"
+                      ? "rgba(255, 180, 171, 0.4)"
+                      : "rgba(255, 255, 255, 0.2)",
+                  boxShadow:
+                    toast.type === "success"
+                      ? "0 0 15px rgba(91, 255, 161, 0.2)"
+                      : toast.type === "error"
+                      ? "0 0 15px rgba(255, 180, 171, 0.2)"
+                      : "0 0 15px rgba(255, 255, 255, 0.1)",
+                  backdropFilter: "blur(8px)",
+                }}
+              >
+                <span>{toast.message}</span>
+              </div>
+            ))}
+          </div>
+          <style jsx>{`
+            .flash-green {
+              animation: green-border-flash 0.3s ease-out forwards;
+            }
+            @keyframes green-border-flash {
+              0% { border-color: transparent; }
+              50% { border-color: rgba(91,255,161,0.7); }
+              100% { border-color: transparent; }
+            }
+            @keyframes flash-cooldown {
+              0% { border-color: transparent; }
+              50% { border-color: rgba(255,255,255,0.7); }
+              100% { border-color: transparent; }
+            }
+            @keyframes slide-in-toast {
+              from {
+                transform: translateX(100%);
+                opacity: 0;
+              }
+              to {
+                transform: translateX(0);
+                opacity: 1;
+              }
+            }
+            .animate-slide-in {
+              animation: slide-in-toast 0.2s ease-out forwards;
+            }
+          `}</style>
+        </div>
+      );
+    } else {
+      return (
+        <div className="bd flex min-h-screen flex-col items-center gap-4 px-4 pt-10">
+          <h1 className="text-xl font-bold">Arahkan kamera ke QR</h1>
+          <div id="qr-reader" className="glass w-full max-w-lg overflow-hidden rounded-2xl" />
+          <button onClick={backToReady} className="rounded-lg border px-6 py-2" style={{ borderColor: "var(--outline-variant)" }}>Batal</button>
+        </div>
+      );
+    }
   }
 
   // ===== VERIFIED (dark + neon hijau) =====
@@ -335,6 +529,19 @@ export default function ScanPage() {
         🟢 Offline Ready ({syncedCount}/{totalCount || syncedCount} Data Synced)
       </div>
 
+      {/* Auto-scan Mode Toggle */}
+      <div className="mx-auto mb-8 w-full max-w-md flex items-center justify-between">
+        <div>
+          <label htmlFor="autoScanToggle" className="block text-sm font-medium text-white">Mode Auto-Scan</label>
+          <p className="text-xs text-gray-400">Scan otomatis tanpa konfirmasi manual. Cocok untuk check-in massal.</p>
+        </div>
+        <Switch
+          id="autoScanToggle"
+          checked={autoScan}
+          onCheckedChange={setAutoScan}
+        />
+      </div>
+
       {fetchErr && <p className="mx-auto mb-4 max-w-md text-sm" style={{ color: "var(--green)" }}>{fetchErr}</p>}
 
       {cameraError ? (
@@ -342,18 +549,20 @@ export default function ScanPage() {
           IZIN KAMERA DIBLOKIR / kamera tidak tersedia. Gunakan input manual di bawah.
         </div>
       ) : (
-        <button onClick={() => setUi("scanning")} className="glass mx-auto flex h-60 w-60 flex-col items-center justify-center gap-4 rounded-3xl transition-transform hover:scale-105 active:scale-95">
-          <span className="material-symbols-outlined text-6xl" style={{ color: "var(--primary)" }}>photo_camera</span>
-          <span className="text-xl font-bold tracking-widest">TAP TO SCAN</span>
+        <button onClick={() => setUi("scanning")} className="glass mx-auto flex h-80 w-80 flex-col items-center justify-center gap-5 rounded-3xl transition-transform hover:scale-105 active:scale-95">
+          <span className="material-symbols-outlined text-8xl" style={{ color: "var(--primary)" }}>photo_camera</span>
+          <span className="text-2xl font-bold tracking-widest">TAP TO SCAN</span>
         </button>
       )}
 
-      <div className="mx-auto mt-auto mb-12 w-full max-w-md">
-        <div className="flex gap-2">
-          <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Manual 6-digit token..." className="bd-input flex-1 rounded-lg p-4 text-center font-mono uppercase" />
-          <button onClick={submitManual} className="rounded-lg px-5 font-bold" style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}>Cek</button>
+      {!autoScan && ( // Only show manual input in normal mode
+        <div className="mx-auto mt-auto mb-12 w-full max-w-md">
+          <div className="flex gap-2">
+            <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Manual 6-digit token..." className="bd-input flex-1 rounded-lg p-4 text-center font-mono uppercase" />
+            <button onClick={submitManual} className="rounded-lg px-5 font-bold" style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}>Cek</button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

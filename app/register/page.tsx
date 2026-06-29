@@ -29,11 +29,15 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     .single();
 
   if (!data?.name) {
-    return { title: GENERIC_TITLE };
+    return {
+      title: 'Registrasi Event — bdForms',
+      description: 'Daftar untuk hadir di event. Isi form dan dapatkan QR tiket instan.'
+    };
   }
 
-  const title = `${data.name} — Registrasi | bdForms`;
-  const description = `Daftar untuk hadir di ${data.name}. Powered by bdForms.`;
+  const eventName = data.name;
+  const title = `${eventName} — Daftar Sekarang | bdForms`;
+  const description = `Daftar untuk hadir di ${eventName}. Isi form dan dapatkan QR tiket instan.`;
   const imageUrl = data.banner_url || `${getBaseUrl()}/og-default.png`;
 
   return {
@@ -42,7 +46,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     openGraph: {
       title,
       description,
-      images: [imageUrl],
+      url: `${getBaseUrl()}/register?eventId=${eventId}`,
+      images: [{ url: imageUrl }],
     },
     twitter: {
       card: "summary_large_image",

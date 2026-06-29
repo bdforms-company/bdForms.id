@@ -3,12 +3,13 @@ export const PACKAGES = [
     id: 'starter',
     name: 'Starter',
     label: 'Trial Gratis',
-    maxParticipants: 25,
+    maxParticipants: 30,
     price: 0,
     normalPrice: 0,
     pricePerPerson: 0,
+    normalPricePerPerson: 0,
     discount: 0,
-    features: ['Maks. 25 peserta', 'QR Check-in offline', 'Dashboard real-time', 'Export CSV'],
+    features: ['Maks. 30 peserta', 'QR Check-in offline', 'Dashboard real-time', 'Export CSV'],
     cta: 'Mulai Gratis',
     highlighted: false,
   },
@@ -17,11 +18,11 @@ export const PACKAGES = [
     name: 'Standard',
     label: 'Paling Populer',
     maxParticipants: 120,
-    price: 27000,
-    normalPrice: 32400,
-    pricePerPerson: 225,
-    normalPricePerPerson: 270,
-    discount: 16.67,
+    price: 72000,
+    normalPrice: 102000,
+    pricePerPerson: 600,
+    normalPricePerPerson: 850,
+    discount: 29,
     features: ['Maks. 120 peserta', 'QR Check-in offline', 'Dashboard real-time', 'Export CSV', 'Link scanner panitia'],
     cta: 'Pilih Standard',
     highlighted: true,
@@ -31,11 +32,11 @@ export const PACKAGES = [
     name: 'Pro',
     label: '',
     maxParticipants: 500,
-    price: 108000,
-    normalPrice: 135000,
-    pricePerPerson: 216,
-    normalPricePerPerson: 270,
-    discount: 20,
+    price: 285000,
+    normalPrice: 425000,
+    pricePerPerson: 570,
+    normalPricePerPerson: 850,
+    discount: 33,
     features: ['Maks. 500 peserta', 'QR Check-in offline', 'Dashboard real-time', 'Export CSV', 'Link scanner panitia', 'Priority support'],
     cta: 'Pilih Pro',
     highlighted: false,
@@ -47,21 +48,17 @@ export const PACKAGES = [
     maxParticipants: null,
     price: null,
     normalPrice: null,
-    pricePerPerson: 270,
+    pricePerPerson: null,
+    normalPricePerPerson: null,
     discount: 0,
     features: ['Peserta tak terbatas', 'White-label', 'Custom branding', 'Dedicated support', 'SLA guarantee'],
     cta: 'Hubungi Kami',
     highlighted: false,
   },
-] as const;
+] as const
 
-export type PackageId = typeof PACKAGES[number]['id'];
-
-export function getPackageById(id: string) {
-  return PACKAGES.find((pkg) => pkg.id === id);
-}
-
-export function formatPrice(price: number): string {
+export function formatPrice(price: number | null) {
+  if (price === null) return '';
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
@@ -70,6 +67,11 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
-export function formatDiscount(discount: number): string {
-  return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(discount);
+export function formatDiscount(discount: number | null) {
+  if (discount === null) return '';
+  return `${discount}%`;
+}
+
+export function getPackageById(id: string) {
+  return PACKAGES.find((pkg) => pkg.id === id);
 }

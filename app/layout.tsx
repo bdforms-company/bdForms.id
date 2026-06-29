@@ -2,9 +2,60 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "bdForms — Fast-Track Registration",
-  description: "Sistem registrasi event offline-first.",
-};
+  title: {
+    default: 'bdForms — Registrasi Event Tanpa Antrian',
+    template: '%s | bdForms'
+  },
+  description: 'Platform registrasi event offline-first dengan QR check-in instan. Setup dalam 30 detik, check-in dalam 3 detik. Cocok untuk seminar kampus, komunitas, dan instansi pemerintahan di Aceh dan seluruh Indonesia.',
+  keywords: ['registrasi event', 'QR check-in', 'offline-first', 'seminar kampus', 'absensi digital', 'bdForms', 'event organizer', 'check-in massal', 'tiket digital', 'Aceh', 'Indonesia'],
+  authors: [{ name: 'bdForms', url: 'https://www.bdforms.id' }],
+  creator: 'bdForms',
+  publisher: 'bdForms',
+  formatDetection: { email: false, address: false, telephone: false },
+  metadataBase: new URL('https://www.bdforms.id'),
+  alternates: {
+    canonical: '/',
+    languages: {
+      'id-ID': '/',
+      'en-US': '/en',
+    }
+  },
+  openGraph: {
+    title: 'bdForms — Registrasi Event Tanpa Antrian',
+    description: 'Platform registrasi event offline-first dengan QR check-in instan. Setup dalam 30 detik, check-in dalam 3 detik.',
+    url: 'https://www.bdforms.id',
+    siteName: 'bdForms',
+    images: [{
+      url: '/og-image.png',
+      width: 1200,
+      height: 630,
+      alt: 'bdForms — Platform Registrasi Event'
+    }],
+    locale: 'id_ID',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'bdForms — Registrasi Event Tanpa Antrian',
+    description: 'Platform registrasi event offline-first dengan QR check-in instan.',
+    images: ['/og-image.png'],
+    creator: '@bdforms'
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    }
+  },
+  verification: {
+    google: 'tambahkan-google-search-console-verification-code-nanti',
+  }
+}
 
 export default function RootLayout({
   children,

@@ -59,7 +59,7 @@ function CreateEventContent() {
     if (!eventStart) { setError("Tanggal mulai event wajib diisi."); return; }
     if (!location.trim()) { setError("Lokasi wajib diisi."); return; }
     if (eventEnd && new Date(eventEnd) <= new Date(eventStart)) { setError("Tanggal selesai harus setelah tanggal mulai."); return; }
-    if (new Date(regDeadline) >= new Date(eventStart)) { setError("Deadline pendaftaran harus sebelum tanggal mulai event."); return; }
+    if (new Date(regDeadline) > new Date(eventStart)) { setError("Deadline pendaftaran tidak boleh setelah tanggal mulai event."); return; }
     setLoading(true);
     try {
       const newEventId = crypto.randomUUID();
@@ -128,7 +128,7 @@ function CreateEventContent() {
       <div className="mb-12 flex flex-col items-center text-center">
         <button onClick={() => router.push("/dashboard")} className="mb-6 flex items-center gap-1 text-sm" style={{ color: "var(--on-surface-variant)" }}><span className="material-symbols-outlined text-base">arrow_back</span>Dashboard</button>
         <h1 className="mb-4 max-w-3xl text-3xl font-bold md:text-5xl">Buat Event dalam <span className="gradient-text">30 Detik</span></h1>
-        {selectedPackage && <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>Paket: <span className="font-semibold" style={{ color: "var(--green)" }}>{selectedPackage.name}</span>{selectedPackage.maxParticipants && ` \u00b7 Maks. ${selectedPackage.maxParticipants} peserta`}</p>}
+        {selectedPackage && <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>Paket: <span className="font-semibold" style={{ color: "var(--green)" }}>{selectedPackage.name}</span>{selectedPackage.maxParticipants && ` · Maks. ${selectedPackage.maxParticipants} peserta`}</p>}
       </div>
       <div className="mx-auto max-w-xl">
         <div className="glass rounded-2xl p-6 md:p-8">
@@ -192,7 +192,7 @@ function CreateEventContent() {
                             <span className="text-[9px] uppercase tracking-wider" style={{ color: "var(--on-surface-variant)" }}>Tampilkan</span>
                           </div>
                           <div className="flex flex-col items-center gap-1">
-                            <button type="button" disabled={!cfg.enabled} onClick={() => updatePresetField(field.key, { required: !cfg.required })} className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed" style={{ background: cfg.required ? "var(--green)" : "#1e2a2c" }}><span className="pointer-events-none inline-block h-[18px] w-[18px] rounded-full bg-white shadow transition-transform duration-200" style={{ transform: cfg.required ? "translate(23px, 3px)" : "translate(3px, 3px)" }} /></button>
+                            <button type="button" disabled={!cfg.enabled} onClick={() => updatePresetField(field.key, { required: !cfg.required })} className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: cfg.required ? "var(--green)" : "#1e2a2c" }}><span className="pointer-events-none inline-block h-[18px] w-[18px] rounded-full bg-white shadow transition-transform duration-200" style={{ transform: cfg.required ? "translate(23px, 3px)" : "translate(3px, 3px)" }} /></button>
                             <span className="text-[9px] uppercase tracking-wider" style={{ color: "var(--on-surface-variant)" }}>Wajib</span>
                           </div>
                         </div>
@@ -202,7 +202,9 @@ function CreateEventContent() {
                   {/* Custom Questions */}
                   <div style={{ borderTop: "1px solid var(--outline-variant)" }}>
                     <div className="px-4 pt-4 pb-2">
-                      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Pertanyaan Custom (maks. 2)</p>
+                      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
+                        Pertanyaan Custom (maks. {selectedPackage?.id === 'starter' ? 1 : selectedPackage?.id === 'standard' ? 3 : 10})
+                      </p>
                     </div>
                     {fieldConfig.customQuestions.map((q, qi) => (
                       <div key={q.id} className="flex items-center gap-3 px-4 py-3" style={{ background: "var(--surface-low)" }}>
@@ -214,9 +216,16 @@ function CreateEventContent() {
                         <button type="button" onClick={() => setFieldConfig({ ...fieldConfig, customQuestions: fieldConfig.customQuestions.filter((_, i) => i !== qi) })} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"><span className="material-symbols-outlined text-base" style={{ color: "var(--error)" }}>delete</span></button>
                       </div>
                     ))}
-                    {fieldConfig.customQuestions.length < 2 && (
+                    {fieldConfig.customQuestions.length < (selectedPackage?.id === 'starter' ? 1 : selectedPackage?.id === 'standard' ? 3 : 10) && (
                       <div className="px-4 py-3">
-                        <button type="button" onClick={() => setFieldConfig({ ...fieldConfig, customQuestions: [...fieldConfig.customQuestions, { id: crypto.randomUUID(), label: "", required: false }] })} className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-white/5" style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface-variant)" }}><span className="material-symbols-outlined text-base">add</span>Tambah Pertanyaan</button>
+                        <button
+                          type="button"
+                          onClick={() => setFieldConfig({ ...fieldConfig, customQuestions: [...fieldConfig.customQuestions, { id: crypto.randomUUID(), label: "", required: false }] })}
+                          className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-white/5"
+                          style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface-variant)" }}
+                        >
+                          <span className="material-symbols-outlined text-base">add</span>Tambah Pertanyaan
+                        </button>
                       </div>
                     )}
                   </div>

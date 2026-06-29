@@ -299,8 +299,8 @@ function ManageEventInner() {
       setEditError("Deadline pendaftaran tidak boleh di masa lalu.");
       return;
     }
-    if (!editDateFieldsLocked && editEventDate && editRegDeadline && new Date(editEventDate) <= new Date(editRegDeadline)) {
-      setEditError("Tanggal mulai event harus setelah deadline pendaftaran.");
+    if (!editDateFieldsLocked && editEventDate && editRegDeadline && new Date(editEventDate) < new Date(editRegDeadline)) {
+      setEditError("Tanggal mulai event tidak boleh sebelum deadline pendaftaran.");
       return;
     }
     if (!editDateFieldsLocked && editEventDate && editEventEnd && new Date(editEventEnd) <= new Date(editEventDate)) {

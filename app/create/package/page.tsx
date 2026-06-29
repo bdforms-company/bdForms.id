@@ -15,7 +15,6 @@ function PackageSelectionContent() {
   const [activeEventCount, setActiveEventCount] = useState<number | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState<PackageId | null>(null);
-  const [organizerName, setOrganizerName] = useState("");
   const [loading, setLoading] = useState(true);
   const [starterBlocked, setStarterBlocked] = useState(false);
 
@@ -49,11 +48,8 @@ function PackageSelectionContent() {
   };
 
   const handlePaymentContinue = () => {
-    if (!selectedPackage || !organizerName.trim()) return;
-    const pkg = PACKAGES.find((p) => p.id === selectedPackage);
-    if (!pkg) return;
-    const msg = `Halo bdForms, saya ${organizerName.trim()} ingin memesan paket ${pkg.name} untuk ${pkg.maxParticipants} peserta. Total: ${formatPrice(pkg.price || 0)}. Mohon konfirmasi pembayarannya.`;
-    window.open(`https://wa.me/6285349902918?text=${encodeURIComponent(msg)}`, "_blank");
+    if (!selectedPackage) return;
+    setShowPaymentModal(false);
     router.push(`/create?package=${selectedPackage}&status=pending_payment`);
   };
 
@@ -74,7 +70,7 @@ function PackageSelectionContent() {
         <div className="mb-12 text-center">
           <h1 className="mb-4 text-3xl font-bold md:text-4xl">Pilih Paket Event</h1>
           <p className="text-base" style={{ color: "var(--on-surface-variant)" }}>
-            Paket mulai dari <span style={{ color: "var(--green)" }}>Gratis</span> · Standard {formatPrice(225)}/orang · Pro {formatPrice(216)}/orang
+            Paket mulai dari <span style={{ color: "var(--green)" }}>Gratis</span> · Standard {formatPrice(600)}/orang · Pro {formatPrice(570)}/orang
           </p>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -91,17 +87,20 @@ function PackageSelectionContent() {
                 <div className="mb-4"><p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>{pkg.maxParticipants ? `Maks. ${pkg.maxParticipants} peserta` : "Tak Terbatas"}</p></div>
                 <div className="mb-6">
                   {pkg.id === "starter" ? (
-                    <p className="text-3xl font-bold" style={{ color: "var(--green)" }}>Gratis</p>
+                    <>
+                      <p className="text-3xl font-bold" style={{ color: "var(--green)" }}>Gratis</p>
+                      <p className="mt-2 text-sm" style={{ color: "var(--on-surface-variant)" }}>Maks. 30 peserta</p>
+                    </>
                   ) : pkg.id === "enterprise" ? (
-                    <p className="text-2xl font-bold">Hubungi Kami</p>
+                    <p className="text-base text-center" style={{ color: "var(--on-surface-variant)" }}>Hubungi Kami untuk penawaran khusus</p>
                   ) : (
                     <>
-                      {pkg.normalPrice && pkg.normalPrice > (pkg.price || 0) && <p className="mb-1 text-sm" style={{ color: "var(--on-surface-variant)", textDecoration: "line-through" }}>{formatPrice(pkg.normalPrice)}</p>}
+                      {pkg.normalPrice && pkg.normalPrice > (pkg.price || 0) && <p className="mb-1 text-sm line-through" style={{ color: "var(--on-surface-variant)" }}>{formatPrice(pkg.normalPrice)}</p>}
                       <div className="mb-2 flex items-center gap-2">
                         <p className="text-3xl font-bold">{formatPrice(pkg.price || 0)}</p>
-                        {pkg.discount > 0 && <span className="rounded px-2 py-0.5 text-xs font-bold" style={{ background: "rgba(91,255,161,0.15)", color: "var(--green)" }}>Hemat {formatDiscount(pkg.discount)}%</span>}
+                        {pkg.discount > 0 && <span className="rounded px-2 py-0.5 text-xs font-bold" style={{ background: "rgba(91,255,161,0.15)", color: "var(--green)" }}>Hemat {formatDiscount(pkg.discount)}</span>}
                       </div>
-                      <p className="text-xs" style={{ color: "var(--on-surface-variant)" }}>({formatPrice(pkg.pricePerPerson)}/orang)</p>
+                      <p className="text-xs" style={{ color: "var(--on-surface-variant)" }}>{formatPrice(pkg.pricePerPerson || 0)}/orang</p>
                     </>
                   )}
                 </div>
@@ -128,33 +127,35 @@ function PackageSelectionContent() {
           })}
         </div>
         {showPaymentModal && selectedPackage && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0, 0, 0, 0.85)" }} onClick={(e) => e.target === e.currentTarget && setShowPaymentModal(false)}>
-            <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#0f1212", border: "1px solid rgba(91,255,161,0.3)" }}>
-              <h3 className="mb-4 text-xl font-bold">Konfirmasi Paket {PACKAGES.find((p) => p.id === selectedPackage)?.name}</h3>
-              <div className="mb-4 space-y-2 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: "var(--on-surface-variant)" }}>Paket:</span>
-                  <span className="font-semibold">{PACKAGES.find((p) => p.id === selectedPackage)?.name}</span>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={(e) => e.target === e.currentTarget && setShowPaymentModal(false)}>
+            <div className="w-full max-w-md p-6" style={{ background: "var(--surface)", border: "1px solid var(--outline)", borderRadius: 16, boxShadow: "var(--shadow-lg)" }}>
+              <h3 className="mb-4 text-xl font-bold" style={{ color: "var(--on-surface)" }}>Konfirmasi Paket {PACKAGES.find((p) => p.id === selectedPackage)?.name}</h3>
+              {selectedPackage !== 'enterprise' ? (
+                <div className="mb-4 space-y-2 rounded-xl p-4" style={{ background: "var(--surface-container)", border: "1px solid var(--outline-variant)" }}>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--on-surface-variant)" }}>Paket:</span>
+                    <span className="font-semibold" style={{ color: "var(--on-surface)" }}>{PACKAGES.find((p) => p.id === selectedPackage)?.name}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--on-surface-variant)" }}>Maks. peserta:</span>
+                    <span className="font-semibold" style={{ color: "var(--on-surface)" }}>{PACKAGES.find((p) => p.id === selectedPackage)?.maxParticipants}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: "var(--on-surface-variant)" }}>Harga:</span>
+                    <span className="text-lg font-bold" style={{ color: "var(--on-surface)" }}>{formatPrice(PACKAGES.find((p) => p.id === selectedPackage)?.price || 0)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: "var(--on-surface-variant)" }}>Maks. peserta:</span>
-                  <span className="font-semibold">{PACKAGES.find((p) => p.id === selectedPackage)?.maxParticipants}</span>
+              ) : (
+                <div className="mb-4 rounded-xl p-4 text-sm" style={{ background: "var(--surface-container)", border: "1px solid var(--outline-variant)", color: "var(--on-surface-variant)" }}>
+                  Untuk paket Enterprise, kami akan segera menghubungi Anda untuk penawaran khusus.
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span style={{ color: "var(--on-surface-variant)" }}>Total:</span>
-                  <span className="text-lg font-bold">{formatPrice(PACKAGES.find((p) => p.id === selectedPackage)?.price || 0)}</span>
-                </div>
-              </div>
-              <div className="mb-4 rounded-xl border p-3 text-sm" style={{ borderColor: "rgba(255,191,0,0.3)", background: "rgba(255,191,0,0.05)", color: "var(--on-surface)" }}>
-                💡 Pembayaran dilakukan via transfer. Setelah konfirmasi dari tim bdForms, event kamu akan aktif.
-              </div>
-              <div className="mb-6">
-                <label className="mb-2 block text-sm font-medium">Nama / Organisasi kamu</label>
-                <input type="text" value={organizerName} onChange={(e) => setOrganizerName(e.target.value)} placeholder="cth: Ahmad / BEM Universitas" className="bd-input w-full rounded-lg px-4 py-3" />
+              )}
+              <div className="mb-4 rounded-xl p-3 text-sm" style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}>
+                💡 Lanjutkan buat event kamu. Setelah event dibuat, kamu akan diarahkan untuk konfirmasi pembayaran via WhatsApp.
               </div>
               <div className="flex gap-3">
-                <button onClick={() => setShowPaymentModal(false)} className="flex-1 rounded-xl border py-3 font-bold" style={{ borderColor: "var(--outline-variant)" }}>Batal</button>
-                <button onClick={handlePaymentContinue} disabled={!organizerName.trim()} className="flex-1 rounded-xl py-3 font-bold disabled:opacity-50" style={{ background: "var(--green)", color: "var(--on-green)" }}>Lanjut via WhatsApp →</button>
+                <button onClick={() => setShowPaymentModal(false)} className="flex-1 rounded-xl border py-3 font-bold" style={{ borderColor: "var(--outline)", color: "var(--on-surface)" }}>Batal</button>
+                <button onClick={handlePaymentContinue} className="flex-1 rounded-xl py-3 font-bold" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Lanjut Buat Event →</button>
               </div>
             </div>
           </div>

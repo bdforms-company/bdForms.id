@@ -2,164 +2,136 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import Image from "next/image";
+import ThemeToggle from "./ThemeToggle";
+import LanguageToggle from "./LanguageToggle";
+import { useTranslation } from "@/lib/useTranslation";
 
-type NavPage = "product" | "pricing";
-
-type MegaItem = { icon: string; title: string; desc: string };
-
-const DOCS_MENU: { heading: string; items: MegaItem[] }[] = [
-  {
-    heading: "Documentation",
-    items: [
-      { icon: "rocket_launch", title: "Getting Started", desc: "Start building in minutes" },
-      { icon: "how_to_reg", title: "Participant Registration", desc: "Digital sign-up flows" },
-      { icon: "qr_code_scanner", title: "QR Check-In", desc: "Instant gate validation" },
-    ],
-  },
-  {
-    heading: "Modules",
-    items: [
-      { icon: "verified_user", title: "Anti-Fraud Verification", desc: "Secure attendee identity" },
-      { icon: "monitoring", title: "Analytics & Reports", desc: "Real-time event insights" },
-      { icon: "account_tree", title: "System Architecture", desc: "Offline-first infrastructure" },
-    ],
-  },
-];
-
-const SOLUTIONS_MENU: { heading: string; items: MegaItem[] }[] = [
-  {
-    heading: "Event Types",
-    items: [
-      { icon: "school", title: "Campus Event", desc: "University & student programs" },
-      { icon: "groups", title: "Seminar and Workshop", desc: "Professional learning sessions" },
-      { icon: "diversity_3", title: "Communities and Organizations", desc: "Clubs & NGO gatherings" },
-    ],
-  },
-  {
-    heading: "Use Cases",
-    items: [
-      { icon: "timer_off", title: "Reduce Registration Queue", desc: "Faster check-in at the gate" },
-      { icon: "shield", title: "Prevent Attendance Fraud", desc: "Verified entry only" },
-      { icon: "eco", title: "Paperless Registration", desc: "Fully digital workflows" },
-    ],
-  },
-];
-
-function MegaMenu({ columns }: { columns: typeof DOCS_MENU }) {
-  return (
-    <div className="nav-mega-panel">
-      <div className="nav-mega-inner">
-        {columns.map((col) => (
-          <div key={col.heading} className="nav-mega-col">
-            <p className="nav-mega-heading">{col.heading}</p>
-            <ul className="nav-mega-list">
-              {col.items.map((item) => (
-                <li key={item.title}>
-                  <button type="button" className="nav-mega-item">
-                    <span className="nav-mega-icon">
-                      <span className="material-symbols-outlined text-lg">{item.icon}</span>
-                    </span>
-                    <span className="nav-mega-text">
-                      <span className="nav-mega-title">{item.title}</span>
-                      <span className="nav-mega-desc">{item.desc}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MegaTrigger({ label }: { label: string }) {
-  return (
-    <button type="button" className="nav-mega-trigger">
-      {label}
-      <span className="material-symbols-outlined text-base">expand_more</span>
-    </button>
-  );
-}
-
-export function SiteNav({ active = "product" }: { active?: NavPage }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+export default function SiteNav() {
+  const { t } = useTranslation();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsLoggedIn(!!session);
-    });
+    const onScroll = () => setScrolled(window.scrollY > 80);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const linkClass = "text-sm font-medium hover:opacity-80";
-  const muted = { color: "var(--on-surface-variant)" } as const;
-  const activeStyle = { color: "var(--green)", borderColor: "var(--green)" } as const;
+  const navLinks = [
+    { href: "#how-it-works", label: t("nav.howItWorks") },
+    { href: "#features", label: t("nav.features") },
+    { href: "#pricing", label: t("nav.pricing") },
+    { href: "#faq", label: t("nav.faq") },
+  ];
 
   return (
-    <nav className="site-nav fixed top-0 z-50 w-full border-b border-white/5 bg-black/70 backdrop-blur-xl">
-      <div className="flex h-20 items-center justify-between px-6 md:px-10">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[28px]" style={{ color: "var(--primary)" }}>
-            layers
-          </span>
-          <span className="text-xl font-bold" style={{ color: "var(--primary)" }}>
-            bdForms
-          </span>
-        </Link>
-
-        <div className="hidden items-center gap-6 md:flex">
-          {active === "product" ? (
-            <span className="border-b-2 pb-1 text-sm font-bold" style={activeStyle}>
-              Product
-            </span>
-          ) : (
-            <Link href="/" className={linkClass} style={muted}>
-              Product
-            </Link>
-          )}
-
-          <div className="nav-mega-group">
-            <MegaTrigger label="Docs" />
-            <MegaMenu columns={DOCS_MENU} />
-          </div>
-
-          <div className="nav-mega-group">
-            <MegaTrigger label="Solutions" />
-            <MegaMenu columns={SOLUTIONS_MENU} />
-          </div>
-
-          {active === "pricing" ? (
-            <span className="border-b-2 pb-1 text-sm font-bold" style={activeStyle}>
-              Pricing
-            </span>
-          ) : (
-            <Link href="/pricing" className={linkClass} style={muted}>
-              Pricing
-            </Link>
-          )}
-        </div>
-
-        <div className="flex items-center gap-4 sm:gap-6">
-          {isLoggedIn ? (
-            <Link href="/dashboard" className={linkClass} style={muted}>
-              Dashboard
-            </Link>
-          ) : (
-            <Link href="/auth/login" className={linkClass} style={muted}>
-              Login
-            </Link>
-          )}
-          <Link
-            href={isLoggedIn ? "/dashboard" : "/auth/login"}
-            className="rounded-full px-5 py-2.5 text-sm font-bold neon-green sm:px-6"
-            style={{ background: "var(--green)", color: "var(--on-green)" }}
-          >
-            Get Started
+    <>
+      <nav
+        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+        style={{
+          background: "var(--background)",
+          borderBottom: "1px solid var(--outline-variant)",
+          boxShadow: scrolled ? "var(--shadow-sm)" : "none",
+        }}
+      >
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-6">
+          {/* Left: Logo */}
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/logo.png" alt="bdForms" width={32} height={32} className="h-8 w-8" />
+            <span className="text-lg font-bold" style={{ color: "var(--primary)" }}>bdForms</span>
           </Link>
+
+          {/* Center: Nav Links (hidden on scroll & mobile) */}
+          <div
+            className="hidden md:flex items-center gap-8 transition-all duration-300"
+            style={{
+              opacity: scrolled ? 0 : 1,
+              pointerEvents: scrolled ? "none" : "auto",
+              transform: scrolled ? "translateY(-8px)" : "translateY(0)",
+            }}
+          >
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-sm font-medium transition-colors hover:text-[var(--primary)]"
+                style={{ color: "var(--on-surface-variant)" }}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+
+          {/* Right: Controls */}
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
+            <Link
+              href="/auth/login"
+              className="hidden sm:inline-flex text-sm font-medium px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-container)]"
+              style={{ color: "var(--on-surface-variant)" }}
+            >
+              {t("nav.login")}
+            </Link>
+            <Link
+              href="/auth/signup"
+              className="rounded-lg px-4 py-2 text-sm font-bold transition-colors"
+              style={{ background: "var(--primary)", color: "var(--on-primary)" }}
+            >
+              {t("nav.getStarted")}
+            </Link>
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="flex md:hidden items-center justify-center rounded-lg p-2 hover:bg-[var(--surface-container)]"
+              aria-label="Menu"
+            >
+              <span className="material-symbols-outlined" style={{ color: "var(--on-surface)" }}>
+                {mobileOpen ? "close" : "menu"}
+              </span>
+            </button>
+          </div>
         </div>
-      </div>
-    </nav>
+
+        {/* Mobile menu */}
+        {mobileOpen && (
+          <div
+            className="md:hidden border-t px-4 pb-4"
+            style={{ borderColor: "var(--outline-variant)", background: "var(--background)" }}
+          >
+            <div className="flex flex-col gap-1 pt-2">
+              {navLinks.map((link) => (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-container)]"
+                  style={{ color: "var(--on-surface)" }}
+                >
+                  {link.label}
+                </a>
+              ))}
+              <Link
+                href="/auth/login"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-container)]"
+                style={{ color: "var(--on-surface)" }}
+              >
+                {t("nav.login")}
+              </Link>
+              <div className="flex items-center gap-2 px-3 pt-2">
+                <LanguageToggle />
+                <ThemeToggle />
+              </div>
+            </div>
+          </div>
+        )}
+      </nav>
+      {/* Spacer */}
+      <div className="h-16" />
+    </>
   );
 }
