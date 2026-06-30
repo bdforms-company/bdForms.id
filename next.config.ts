@@ -1,6 +1,8 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === 'development';
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -8,6 +10,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "gpmkrxkwqqxhrpeuugyd.supabase.co",
         pathname: "/storage/v1/object/public/**",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
       },
     ],
   },
@@ -40,15 +46,17 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             // 'unsafe-inline' in script-src is required for Next.js framework internals
             // (hydration bootstrapping, dynamic chunk loading). Removing it breaks the app.
-            // JSON-LD structured data uses type="application/ld+json" (not executable JS)
-            // and does not itself require this directive.
+            // 'unsafe-eval' is only included in development: React dev mode uses eval()
+            // for source-mapped stack traces. Production builds never include it.
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.sentry.io",
+              isDev
+                ? "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://fonts.googleapis.com https://*.sentry.io"
+                : "script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.sentry.io",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://*.supabase.co https://*.sentry.io wss://*.supabase.co",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.sentry.io",
               "frame-ancestors 'self'",
             ].join('; '),
           },

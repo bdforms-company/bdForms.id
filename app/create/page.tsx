@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -82,20 +82,45 @@ function CreateEventContent() {
   const [fieldConfig, setFieldConfig] = useState<FieldConfig>(DEFAULT_FIELD_CONFIG);
   const [showFieldConfig, setShowFieldConfig] = useState(false);
 
+  const bannerCompressIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (bannerPreview) URL.revokeObjectURL(bannerPreview);
+    };
+  }, [bannerPreview]);
+
   const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) { setError("File harus berupa gambar."); e.target.value = ""; return; }
     if (file.size > 10 * 1024 * 1024) { setError("Ukuran file terlalu besar (maks. 10MB)."); e.target.value = ""; return; }
-    if (bannerPreview) URL.revokeObjectURL(bannerPreview);
-    setBannerPreview(null); setBannerFile(null); setCompressingBanner(true);
-    let finalFile = file;
-    try { finalFile = await imageCompression(file, { maxSizeMB: 0.3, maxWidthOrHeight: 1600, useWebWorker: true, fileType: "image/jpeg" }); } catch (err) { console.error("Banner compression:", err); }
-    setBannerFile(finalFile); setBannerPreview(URL.createObjectURL(finalFile)); setCompressingBanner(false);
+    const compressId = ++bannerCompressIdRef.current;
+    setBannerPreview(null);
+    setBannerFile(null);
+    setCompressingBanner(true);
+    try {
+      const compressed = await imageCompression(file, { maxSizeMB: 0.3, maxWidthOrHeight: 1600, useWebWorker: true, fileType: "image/jpeg" });
+      if (compressId !== bannerCompressIdRef.current) return;
+      setBannerFile(compressed);
+      setBannerPreview(URL.createObjectURL(compressed));
+    } catch (err) {
+      if (compressId !== bannerCompressIdRef.current) return;
+      console.error("Banner compression:", err);
+      setError("Gagal memproses gambar. Coba gambar lain.");
+      e.target.value = "";
+    } finally {
+      if (compressId === bannerCompressIdRef.current) setCompressingBanner(false);
+    }
   };
 
-  const removeBanner = () => { if (bannerPreview) URL.revokeObjectURL(bannerPreview); setBannerFile(null); setBannerPreview(null); };
+  const removeBanner = () => {
+    bannerCompressIdRef.current++;
+    setBannerFile(null);
+    setBannerPreview(null);
+    setCompressingBanner(false);
+  };
 
   const updatePresetField = (key: Exclude<keyof FieldConfig, "customQuestions">, patch: { enabled?: boolean; required?: boolean }) => {
     setFieldConfig({ ...fieldConfig, [key]: { ...fieldConfig[key], ...patch } });
@@ -250,10 +275,10 @@ function CreateEventContent() {
                   <button type="button" onClick={removeBanner} className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full border bg-black/60 backdrop-blur-sm" style={{ borderColor: "var(--outline-variant)" }}><span className="material-symbols-outlined text-base">close</span></button>
                 </div>
               ) : null}
-              <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 transition-colors hover:bg-white/5" style={{ borderColor: "var(--outline-variant)" }}>
+              <label className="mt-2 flex items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 transition-colors" style={{ borderColor: "var(--outline-variant)", cursor: compressingBanner ? "default" : "pointer", opacity: compressingBanner ? 0.5 : 1 }}>
                 <span className="material-symbols-outlined text-xl" style={{ color: "var(--on-surface-variant)" }}>image</span>
-                <span className="text-sm" style={{ color: "var(--on-surface-variant)" }}>Pilih gambar banner</span>
-                <input type="file" accept="image/*" onChange={handleBannerChange} className="hidden" />
+                <span className="text-sm" style={{ color: "var(--on-surface-variant)" }}>{compressingBanner ? "Memproses gambar..." : "Pilih gambar banner"}</span>
+                <input type="file" accept="image/*" onChange={handleBannerChange} className="hidden" disabled={compressingBanner} />
               </label>
               <p className="mt-2 text-xs" style={{ color: "var(--on-surface-variant)" }}>
                 💡 Gunakan gambar landscape 1200×630px untuk hasil terbaik. Format: JPG/PNG, maks. 2MB.
