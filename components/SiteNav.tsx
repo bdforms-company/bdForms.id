@@ -4,11 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import ThemeToggle from "./ThemeToggle";
-import LanguageToggle from "./LanguageToggle";
-import { useTranslation } from "@/lib/useTranslation";
+
+const navLinks = [
+  { href: "#how-it-works", label: "Cara Kerja" },
+  { href: "#features", label: "Fitur" },
+  { href: "#pricing", label: "Harga" },
+  { href: "#faq", label: "FAQ" },
+];
 
 export default function SiteNav() {
-  const { t } = useTranslation();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -17,13 +21,6 @@ export default function SiteNav() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  const navLinks = [
-    { href: "#how-it-works", label: t("nav.howItWorks") },
-    { href: "#features", label: t("nav.features") },
-    { href: "#pricing", label: t("nav.pricing") },
-    { href: "#faq", label: t("nav.faq") },
-  ];
 
   return (
     <>
@@ -66,7 +63,6 @@ export default function SiteNav() {
           {/* Right: Controls */}
           <div className="flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-2">
-              <LanguageToggle />
               <ThemeToggle />
             </div>
             <Link
@@ -74,14 +70,14 @@ export default function SiteNav() {
               className="hidden sm:inline-flex text-sm font-medium px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-container)]"
               style={{ color: "var(--on-surface-variant)" }}
             >
-              {t("nav.login")}
+              Masuk
             </Link>
             <Link
               href="/auth/signup"
               className="rounded-lg px-4 py-2 text-sm font-bold transition-colors"
               style={{ background: "var(--primary)", color: "var(--on-primary)" }}
             >
-              {t("nav.getStarted")}
+              Mulai Sekarang
             </Link>
             {/* Mobile hamburger */}
             <button
@@ -120,10 +116,9 @@ export default function SiteNav() {
                 className="rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-container)]"
                 style={{ color: "var(--on-surface)" }}
               >
-                {t("nav.login")}
+                Masuk
               </Link>
               <div className="flex items-center gap-2 px-3 pt-2">
-                <LanguageToggle />
                 <ThemeToggle />
               </div>
             </div>

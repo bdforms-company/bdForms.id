@@ -15,10 +15,6 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://www.bdforms.id'),
   alternates: {
     canonical: '/',
-    languages: {
-      'id-ID': '/',
-      'en-US': '/en',
-    }
   },
   openGraph: {
     title: 'bdForms — Registrasi Event Tanpa Antrian',

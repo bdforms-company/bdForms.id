@@ -38,7 +38,7 @@ export const DEFAULT_FIELD_CONFIG: FieldConfig = {
 
 export const PRESET_FIELDS = [
   { key: "phone", label: "No. HP", icon: "phone", placeholder: "08xx-xxxx-xxxx", type: "tel" },
-  { key: "institution", label: "Instansi / Asal", icon: "business", placeholder: "Universitas / Kantor / Startup", type: "text" },
+  { key: "institution", label: "Instansi / Lembaga / Komunitas / Startup", icon: "business", placeholder: "Universitas / Perusahaan / Komunitas / dll", type: "text" },
   { key: "position", label: "Jabatan / Posisi", icon: "work", placeholder: "Mahasiswa / Manager / CEO", type: "text" },
   { key: "idNumber", label: "NIP / NIM / ID", icon: "badge", placeholder: "Nomor identifikasi", type: "text" },
 ] as const;

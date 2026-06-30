@@ -32,6 +32,9 @@ type Ev = {
   package_status?: string;
   event_date?: string | null;
   event_end?: string | null;
+  slug?: string | null;
+  doc_slug?: string | null;
+  doc_url?: string | null;
 };
 
 type Tab = "pendaftar" | "monitoring" | "scanner";
@@ -83,6 +86,12 @@ function ManageEventInner() {
   const [copied, setCopied] = useState(false);
   const [origin, setOrigin] = useState("https://www.bdforms.id");
 
+  const [editingSlug, setEditingSlug] = useState(false);
+  const [slugInput, setSlugInput] = useState("");
+  const [savingSlug, setSavingSlug] = useState(false);
+  const [slugSaveError, setSlugSaveError] = useState<string | null>(null);
+  const [copiedDoc, setCopiedDoc] = useState(false);
+
   const [editOpen, setEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -110,7 +119,7 @@ function ManageEventInner() {
 
     const { data: evData, error: evError } = await supabase
       .from("events")
-      .select("name, status, owner_id, expected_participants, custom_fields, field_config, scanner_token, scanner_token_expires_at, package_type, package_status, event_date, event_end")
+      .select("name, status, owner_id, expected_participants, custom_fields, field_config, scanner_token, scanner_token_expires_at, package_type, package_status, event_date, event_end, slug, doc_slug, doc_url")
       .eq("id", eventId)
       .single();
 
@@ -139,6 +148,9 @@ function ManageEventInner() {
       status: (evData.status ?? "active") as "active" | "closed",
       custom_fields: fields,
       field_config: parseFieldConfig(evData.field_config),
+      slug: evData.slug ?? null,
+      doc_slug: evData.doc_slug ?? null,
+      doc_url: evData.doc_url ?? null,
     } as Ev);
 
     const { data: pData } = await supabase
@@ -186,6 +198,29 @@ function ManageEventInner() {
     navigator.clipboard?.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const saveSlug = async () => {
+    const trimmed = slugInput.trim().toLowerCase().replace(/\s+/g, "-");
+    if (!trimmed) { setSlugSaveError("Slug tidak boleh kosong."); return; }
+    if (!/^[a-z0-9-]+$/.test(trimmed)) { setSlugSaveError("Hanya huruf kecil, angka, dan tanda hubung (-)."); return; }
+    setSavingSlug(true);
+    setSlugSaveError(null);
+    const { data: existing } = await supabase.from("events").select("id").eq("slug", trimmed).single();
+    if (existing) {
+      setSavingSlug(false);
+      setSlugSaveError("Slug sudah digunakan, coba yang lain.");
+      return;
+    }
+    const { error } = await supabase.from("events").update({ slug: trimmed }).eq("id", eventId);
+    setSavingSlug(false);
+    if (error) {
+      setSlugSaveError(error.message.includes("unique") ? "Slug sudah digunakan, coba yang lain." : error.message);
+      return;
+    }
+    setEditingSlug(false);
+    setSlugInput("");
+    await load();
   };
 
   const closeEditModal = () => {
@@ -343,37 +378,78 @@ function ManageEventInner() {
     }
   };
 
-  const exportCSV = () => {
-    const fieldConfig = ev?.field_config ?? DEFAULT_FIELD_CONFIG;
-    const enabledPresets = PRESET_FIELDS.filter((f) => fieldConfig[f.key].enabled);
-    const customQs = fieldConfig.customQuestions;
-    const header = [
-      "No", "Nama", "Email",
-      ...enabledPresets.map((f) => f.label),
-      ...customQs.map((q) => q.label || "Pertanyaan"),
-      "Status", "Waktu Check-in",
-    ];
-    const rows = list.map((p, i) => {
-      const data = p.extra_data ?? {};
-      return [
-        i + 1, p.name, p.email ?? "-",
-        ...enabledPresets.map((f) => data[f.key] ?? ""),
-        ...customQs.map((q) => data[q.id] ?? ""),
-        p.is_checked_in ? "Hadir" : "Belum Hadir",
-        p.check_in_time ? new Date(p.check_in_time).toLocaleString("id-ID") : "-",
-      ];
-    });
-    const csv = [header, ...rows]
-      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${ev?.name ?? "peserta"}_${new Date().toLocaleDateString("id-ID").replace(/\//g, "-")}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+    const buildExportColumns = (participants: Participant[], fieldConfig: FieldConfig) => {
+        const columns: { header: string; accessor: (p: Participant, index?: number) => string; }[] = [
+            { header: "No", accessor: (_, index) => (index !== undefined ? index + 1 : "").toString() },
+            { header: "Nama Lengkap", accessor: (p) => p.name ?? "" },
+            { header: "Email", accessor: (p) => p.email ?? "" },
+        ];
+
+        const presetFieldLabels: { [key: string]: string } = {
+            phone: "No. HP",
+            institution: "Instansi / Lembaga / Komunitas / Startup",
+            position: "Jabatan / Posisi",
+            idNumber: "NIP / NIM / ID",
+        };
+
+        // Add enabled preset fields in order
+        PRESET_FIELDS.forEach(field => {
+            if (fieldConfig[field.key]?.enabled) {
+                columns.push({
+                    header: presetFieldLabels[field.key] || field.label,
+                    accessor: (p) => {
+                        const extraData = p.extra_data ?? {};
+                        return extraData[field.key] ?? "";
+                    }
+                });
+            }
+        });
+
+        // Add custom questions
+        fieldConfig.customQuestions.forEach(q => {
+            columns.push({
+                header: q.label,
+                accessor: (p) => {
+                    const customData = p.custom_data ?? {};
+                    return customData[q.id] ?? "";
+                }
+            });
+        });
+
+        columns.push(
+            { header: "Status Kehadiran", accessor: (p) => p.is_checked_in ? "Hadir" : "Belum Hadir" },
+            { header: "Waktu Check-in", accessor: (p) => p.check_in_time ? new Date(p.check_in_time).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB' : "-" }
+        );
+        // QR Code is not part of CSV export anymore
+        // { header: "Kode QR", accessor: (p) => p.qr_code ?? "" }
+
+
+        return columns;
+    };
+
+    const exportCSV = () => {
+        if (!ev) return;
+
+        const columns = buildExportColumns(list, ev.field_config);
+        const header = columns.map(col => col.header);
+        const rows = list.map((p, index) => columns.map(col => col.accessor(p, index)));
+
+        const csvContent = [
+            header.join(','),
+            ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+
+        const bom = "\uFEFF"; // Byte Order Mark for proper Excel/Sheets encoding
+        const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const eventName = ev.name.replace(/[^a-zA-Z0-9]/gi, '_').toLowerCase();
+        const date = new Date().toLocaleDateString('id-ID').replace(/\//g, '-');
+        a.download = `${eventName}_${date}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
   useEffect(() => {
     if (accessDenied && !loading) {
@@ -437,7 +513,7 @@ function ManageEventInner() {
                 ← Kembali ke Dashboard
               </Link>
               <a
-                href="https://wa.me/6285349902918?text=Halo%20bdForms%2C%20saya%20ingin%20konfirmasi%20pembayaran%20untuk%20event%20saya"
+                href="https://wa.me/6285199527012?text=Halo%20bdForms%2C%20saya%20ingin%20konfirmasi%20pembayaran%20untuk%20event%20saya"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-xl px-6 py-3 font-bold"
@@ -520,21 +596,93 @@ function ManageEventInner() {
             </div>
           )}
 
+          {/* 1. Link Pendaftaran */}
           <div className="glass mb-6 rounded-2xl p-6">
-            <h2 className="mb-2 text-lg font-bold">Link Pendaftaran Peserta</h2>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h2 className="text-lg font-bold">Link Pendaftaran Peserta</h2>
+              {!ev.slug && !isClosed && !editingSlug && (
+                total === 0 ? (
+                  <button
+                    onClick={() => { setEditingSlug(true); setSlugInput(""); setSlugSaveError(null); }}
+                    className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+                    style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface-variant)" }}
+                  >
+                    <span className="material-symbols-outlined text-sm">link</span>
+                    Tambah URL Pendek
+                  </button>
+                ) : (
+                  <span
+                    className="text-xs"
+                    style={{ color: "var(--on-surface-variant)" }}
+                    title="Tidak bisa diubah setelah ada peserta"
+                  >
+                    🔒 URL Pendek terkunci
+                  </span>
+                )
+              )}
+            </div>
             <p className="mb-4 text-sm" style={{ color: "var(--on-surface-variant)" }}>Bagikan ke peserta via WhatsApp atau media sosial</p>
+
+            {editingSlug && (
+              <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
+                <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>URL Pendek Event</label>
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0 text-sm" style={{ color: "var(--on-surface-variant)" }}>bdforms.id/e/</span>
+                  <input
+                    value={slugInput}
+                    onChange={(e) => { setSlugInput(e.target.value.toLowerCase().replace(/\s+/g, "-")); setSlugSaveError(null); }}
+                    placeholder="nama-event"
+                    className="bd-input flex-1 rounded-lg px-3 py-2 text-sm"
+                    autoFocus
+                  />
+                </div>
+                {slugSaveError && <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{slugSaveError}</p>}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={saveSlug}
+                    disabled={savingSlug}
+                    className="rounded-lg px-4 py-2 text-sm font-bold disabled:opacity-50"
+                    style={{ background: "var(--green)", color: "var(--on-green)" }}
+                  >
+                    {savingSlug ? "Menyimpan..." : "Simpan"}
+                  </button>
+                  <button
+                    onClick={() => { setEditingSlug(false); setSlugSaveError(null); }}
+                    className="rounded-lg border px-4 py-2 text-sm"
+                    style={{ borderColor: "var(--outline-variant)" }}
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-3 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
-              <code className="truncate text-sm">{`${origin}/register?eventId=${eventId}`}</code>
-              <button onClick={() => { navigator.clipboard?.writeText(`${origin}/register?eventId=${eventId}`); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="shrink-0 rounded-lg p-2 hover:bg-white/10" title="Salin">
-                <span className="material-symbols-outlined text-base" style={{ color: copied ? "var(--green)" : "var(--on-surface-variant)" }}>{copied ? "check" : "content_copy"}</span>
+              <code className="truncate text-sm">
+                {ev.slug ? `bdforms.id/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`}
+              </code>
+              <button
+                onClick={() => {
+                  const link = ev.slug ? `https://bdforms.id/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`;
+                  navigator.clipboard?.writeText(link);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                }}
+                className="shrink-0 rounded-lg p-2 hover:bg-white/10"
+                title="Salin"
+              >
+                <span className="material-symbols-outlined text-base" style={{ color: copied ? "var(--green)" : "var(--on-surface-variant)" }}>
+                  {copied ? "check" : "content_copy"}
+                </span>
               </button>
             </div>
           </div>
 
+          {/* 2. Field yang Diaktifkan */}
           <div className="glass mb-6 rounded-2xl p-6">
             <h2 className="mb-2 text-lg font-bold">Field yang Diaktifkan</h2>
             <p className="mb-4 text-sm" style={{ color: "var(--on-surface-variant)" }}>Berikut field yang akan muncul di form pendaftaran</p>
-            <div className="mb-4 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               <span className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--outline-variant)" }}><span className="font-semibold">Nama</span> <span style={{ color: "var(--error)" }}>*</span></span>
               <span className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--outline-variant)" }}><span className="font-semibold">Email</span> <span style={{ color: "var(--error)" }}>*</span></span>
               {PRESET_FIELDS.map((field) => {
@@ -544,15 +692,49 @@ function ManageEventInner() {
               })}
               {ev.field_config.customQuestions.map((q) => <span key={q.id} className="rounded-lg border px-3 py-1.5 text-sm" style={{ borderColor: "var(--outline-variant)" }}><span className="font-semibold">{q.label || "Pertanyaan"}</span>{q.required && <span style={{ color: "var(--error)" }}> *</span>}</span>)}
             </div>
-            {!isClosed && (
-              <>
-                <button onClick={openEditModal} className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm" style={{ borderColor: "var(--outline-variant)" }}>
-                  <span className="material-symbols-outlined text-base">edit</span>Edit Form Pendaftaran
-                </button>
-                {total > 0 && <p className="mt-2 text-xs" style={{ color: "var(--on-surface-variant)" }}>Detail event tetap bisa diedit. Konfigurasi field terkunci karena sudah ada peserta.</p>}
-              </>
-            )}
           </div>
+
+          {/* 3. Materi / Dokumen (if exists) */}
+          {ev.doc_url && ev.doc_slug && (
+            <div className="glass mb-6 rounded-2xl p-6">
+              <h2 className="mb-2 text-lg font-bold">Materi Pre-Event</h2>
+              <p className="mb-4 text-sm" style={{ color: "var(--on-surface-variant)" }}>Link materi yang bisa dibagikan ke peserta</p>
+              <div className="flex items-center justify-between gap-3 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
+                <code className="truncate text-sm">bdforms.id/doc/{ev.doc_slug}</code>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    onClick={() => { navigator.clipboard?.writeText(`https://bdforms.id/doc/${ev.doc_slug}`); setCopiedDoc(true); setTimeout(() => setCopiedDoc(false), 1500); }}
+                    className="rounded-lg p-2 hover:bg-white/10"
+                    title="Salin"
+                  >
+                    <span className="material-symbols-outlined text-base" style={{ color: copiedDoc ? "var(--green)" : "var(--on-surface-variant)" }}>
+                      {copiedDoc ? "check" : "content_copy"}
+                    </span>
+                  </button>
+                  <a
+                    href={ev.doc_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+                    style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface-variant)" }}
+                  >
+                    <span className="material-symbols-outlined text-sm">open_in_new</span>
+                    Buka Materi
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Edit Form button */}
+          {!isClosed && (
+            <div className="mb-6">
+              <button onClick={openEditModal} className="flex items-center gap-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/5" style={{ borderColor: "var(--outline-variant)" }}>
+                <span className="material-symbols-outlined text-base">edit</span>Edit Form Pendaftaran
+              </button>
+              {total > 0 && <p className="mt-2 text-xs" style={{ color: "var(--on-surface-variant)" }}>Detail event tetap bisa diedit. Konfigurasi field terkunci karena sudah ada peserta.</p>}
+            </div>
+          )}
         </div>
       )}
 
@@ -900,6 +1082,9 @@ function EditEventModal({
                 <span className="text-sm" style={{ color: "var(--on-surface-variant)" }}>Pilih gambar banner</span>
                 <input type="file" accept="image/*" onChange={onBannerChange} className="hidden" />
               </label>
+              <p className="mt-2 text-xs" style={{ color: "var(--on-surface-variant)" }}>
+                💡 Gunakan gambar landscape 1200×630px untuk hasil terbaik. Format: JPG/PNG, maks. 2MB.
+              </p>
             </div>
             <div>
               <label className="mb-2 flex items-center gap-2 text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>

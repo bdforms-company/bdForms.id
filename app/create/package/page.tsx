@@ -40,7 +40,7 @@ function PackageSelectionContent() {
       if (starterBlocked) return;
       router.push("/create?package=starter");
     } else if (pkgId === "enterprise") {
-      window.open("https://wa.me/6285349902918?text=Halo%2C%20saya%20tertarik%20dengan%20paket%20Enterprise%20bdForms.%20Bisa%20dibantu%3F", "_blank");
+      window.open("https://wa.me/6285199527012?text=Halo%2C%20saya%20tertarik%20dengan%20paket%20Enterprise%20bdForms.%20Bisa%20dibantu%3F", "_blank");
     } else {
       setSelectedPackage(pkgId);
       setShowPaymentModal(true);

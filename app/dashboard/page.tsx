@@ -10,6 +10,12 @@ import { supabase } from "@/lib/supabase";
 import { generateNotifications } from "@/lib/notifications";
 import "../design.css";
 
+type Profile = {
+  full_name: string | null;
+  avatar_url: string | null;
+  username: string | null;
+};
+
 type EventRow = {
   id: string;
   name: string;
@@ -97,7 +103,10 @@ function EventCard({ ev, past }: { ev: EventRow; past?: boolean }) {
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [greeting, setGreeting] = useState("");
+  const [profileGreeting, setProfileGreeting] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [profileFullName, setProfileFullName] = useState<string | null>(null);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
   const [upcoming, setUpcoming] = useState<EventRow[]>([]);
   const [past, setPast] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,11 +137,14 @@ function DashboardContent() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, avatar_url, username")
         .eq("id", session.user.id)
-        .single();
+        .single<Profile>();
 
-      setGreeting(profile?.full_name || session.user.email || "Organizer");
+      setProfileGreeting(profile?.full_name || profile?.username || session.user.email || "Organizer");
+      setAvatarUrl(profile?.avatar_url ?? null);
+      setProfileFullName(profile?.full_name ?? null);
+      setProfileUsername(profile?.username ?? null);
 
       const { data: events } = await supabase
         .from("events")
@@ -186,7 +198,7 @@ function DashboardContent() {
   const notifications = useMemo(() => generateNotifications([...upcoming, ...past]).map((n) => ({ ...n, read: readIds.includes(n.id) })), [upcoming, past, readIds]);
   const unreadCount = notifications.filter((n) => !n.read).length;
   const markAllRead = () => { const ids = notifications.map((n) => n.id); localStorage.setItem("bdforms_read_notifications", JSON.stringify(ids)); setReadIds(ids); };
-  const initials = (greeting || email || "U").trim().charAt(0).toUpperCase();
+  const initials = (profileFullName || profileUsername || email || "U").trim().charAt(0).toUpperCase();
   const relativeTime = (d: Date) => { const h = Math.floor(((nowMs || d.getTime()) - d.getTime()) / 3600000); if (h < 1) return "baru saja"; if (h < 24) return `${h} jam lalu`; return `${Math.floor(h / 24)} hari lalu`; };
 
   const totalEvents = upcoming.length + past.length;
@@ -205,7 +217,7 @@ function DashboardContent() {
     <div className="bd min-h-screen pb-16">
       <header className="sticky top-0 z-40 mb-10 border-b shadow-sm" style={{ background: "color-mix(in srgb, var(--background) 94%, transparent)", borderColor: "var(--outline-variant)", backdropFilter: "blur(18px)" }}>
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-4 md:px-0">
-        <h1 className="text-2xl font-bold">Halo, {greeting}! 👋</h1>
+        <h1 className="text-2xl font-bold">Halo, {profileGreeting}! 👋</h1>
         <div className="flex items-center gap-3">
           <Link href="/create/package" className="rounded-xl px-5 py-2.5 text-sm font-bold shadow-sm transition hover:-translate-y-0.5" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Buat Event Baru</Link>
           <div className="relative" ref={notifRef}>
@@ -214,8 +226,14 @@ function DashboardContent() {
           </div>
           <ThemeToggle />
           <div className="relative" ref={profileRef}>
-            <button onClick={() => setProfileOpen((v) => !v)} className="flex h-9 w-9 items-center justify-center rounded-full font-bold" style={{ background: "var(--brand-gradient)", color: "var(--on-primary)" }}>{initials}</button>
-            {profileOpen && <div className="absolute right-0 top-full z-50 mt-3 min-w-48 rounded-2xl border p-3 shadow-2xl" style={{ background: "var(--surface)", borderColor: "var(--outline-variant)", boxShadow: "var(--shadow-lg)" }}><div className="border-b pb-3 mb-2" style={{borderColor:"var(--outline-variant)"}}><p className="text-sm font-bold">{greeting}</p><p className="text-xs" style={{color:"var(--on-surface-variant)"}}>{email}</p></div><Link href="/profile" className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--surface-container)]">⚙️ Pengaturan</Link><button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-container)]">🚪 Keluar</button></div>}
+            <button onClick={() => setProfileOpen((v) => !v)} className="flex h-9 w-9 items-center justify-center rounded-full font-bold" style={{ background: "var(--brand-gradient)", color: "var(--on-primary)" }}>
+              {avatarUrl ? (
+                <Image src={avatarUrl} alt="Avatar" width={36} height={36} className="h-9 w-9 rounded-full object-cover" />
+              ) : (
+                initials
+              )}
+            </button>
+            {profileOpen && <div className="absolute right-0 top-full z-50 mt-3 min-w-48 rounded-2xl border p-3 shadow-2xl" style={{ background: "var(--surface)", borderColor: "var(--outline-variant)", boxShadow: "var(--shadow-lg)" }}><div className="border-b pb-3 mb-2" style={{borderColor:"var(--outline-variant)"}}><p className="text-sm font-bold">{profileFullName || profileUsername || email}</p><p className="text-xs" style={{color:"var(--on-surface-variant)"}}>{email}</p></div><Link href="/profile" className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--surface-container)]">⚙️ Pengaturan</Link><button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-container)]">🚪 Keluar</button></div>}
           </div>
         </div>
         </div>

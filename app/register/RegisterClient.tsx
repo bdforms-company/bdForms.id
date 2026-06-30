@@ -19,6 +19,7 @@ export default function RegisterClient() {
   const [mounted, setMounted] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -35,6 +36,14 @@ export default function RegisterClient() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showSignupBanner, setShowSignupBanner] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
+  const [tosEnabled, setTosEnabled] = useState(false);
+  const [tosText, setTosText] = useState("");
+  const [tosExpanded, setTosExpanded] = useState(false);
+  const [tosChecked, setTosChecked] = useState(false);
+  const [emailRequired, setEmailRequired] = useState(false);
+  const [eventNotFound, setEventNotFound] = useState(false);
+  const [pendingPayment, setPendingPayment] = useState(false);
   const emailSentRef = useRef(false);
   const autoDownloadedRef = useRef(false);
 
@@ -43,7 +52,6 @@ export default function RegisterClient() {
     setMounted(true);
   }, []);
 
-  // cek limit: true kalau kuota sudah penuh
   const isAtCapacity = async (): Promise<boolean> => {
     if (!eventId) return false;
     const { data: ev } = await supabase
@@ -52,7 +60,7 @@ export default function RegisterClient() {
       .eq("id", eventId)
       .single();
     const cap = ev?.expected_participants ?? null;
-    if (!cap) return false; // kosong = unlimited
+    if (!cap) return false;
     const { count } = await supabase
       .from("participants")
       .select("*", { count: "exact", head: true })
@@ -65,16 +73,37 @@ export default function RegisterClient() {
     let active = true;
     supabase
       .from("events")
-      .select("name, banner_url, event_date, registration_deadline, custom_fields, field_config")
+      .select("name, banner_url, event_date, registration_deadline, custom_fields, field_config, whatsapp_group_url, tos_enabled, tos_text, email_required, status, package_status")
       .eq("id", eventId)
       .single()
       .then(({ data }) => {
-        if (!active || !data) return;
+        if (!active) return;
+        if (!data) { setEventNotFound(true); return; }
+
+        if (data.package_status === "pending_payment") {
+          if (data.name) setEventName(data.name);
+          if (data.banner_url) setBannerUrl(data.banner_url);
+          setPendingPayment(true);
+          return;
+        }
+
+        if (data.status === "closed") {
+          if (data.name) setEventName(data.name);
+          if (data.banner_url) setBannerUrl(data.banner_url);
+          setRegistrationClosed(true);
+          setClosedDeadlineLabel("");
+          return;
+        }
+
         if (data.banner_url) setBannerUrl(data.banner_url);
         if (data.name) setEventName(data.name);
         const fields = Array.isArray(data.custom_fields) ? (data.custom_fields as CustomField[]) : [];
         setCustomFields(fields);
         setFieldConfig(parseFieldConfig(data.field_config));
+        setWhatsappGroupUrl(data.whatsapp_group_url ?? null);
+        setTosEnabled(!!data.tos_enabled);
+        setTosText(typeof data.tos_text === "string" ? data.tos_text : "");
+        setEmailRequired(!!data.email_required);
 
         const deadline = data.registration_deadline
           ? new Date(data.registration_deadline)
@@ -89,21 +118,14 @@ export default function RegisterClient() {
           );
         }
       });
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [eventId]);
 
-  // cek kuota saat halaman dibuka (setelah deadline)
   useEffect(() => {
     if (!eventId || registrationClosed) return;
     let active = true;
-    isAtCapacity().then((f) => {
-      if (active && f) setFull(true);
-    });
-    return () => {
-      active = false;
-    };
+    isAtCapacity().then((f) => { if (active && f) setFull(true); });
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, registrationClosed]);
 
@@ -115,12 +137,8 @@ export default function RegisterClient() {
       .select("name")
       .eq("id", eventId)
       .single()
-      .then(({ data }) => {
-        if (active && data?.name) setEventName(data.name);
-      });
-    return () => {
-      active = false;
-    };
+      .then(({ data }) => { if (active && data?.name) setEventName(data.name); });
+    return () => { active = false; };
   }, [result, eventId]);
 
   useEffect(() => {
@@ -130,14 +148,9 @@ export default function RegisterClient() {
     const sendTicket = async () => {
       let evName = eventName;
       if (!evName && eventId) {
-        const { data } = await supabase
-          .from("events")
-          .select("name")
-          .eq("id", eventId)
-          .single();
+        const { data } = await supabase.from("events").select("name").eq("id", eventId).single();
         evName = data?.name ?? "Event";
       }
-
       try {
         const res = await fetch("/api/send-participant-ticket", {
           method: "POST",
@@ -176,9 +189,7 @@ export default function RegisterClient() {
   useEffect(() => {
     if (!result || autoDownloadedRef.current) return;
     autoDownloadedRef.current = true;
-    const timer = setTimeout(() => {
-      downloadTicket();
-    }, 500);
+    const timer = setTimeout(() => { downloadTicket(); }, 500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -186,12 +197,13 @@ export default function RegisterClient() {
   const handleSubmit = async () => {
     setError(null);
     setFieldErrors({});
-    if (!eventId) {
-      setError("Link pendaftaran tidak valid.");
-      return;
-    }
-    if (!name.trim()) {
-      setError("Nama wajib diisi.");
+    setEmailError(null);
+    if (!eventId) { setError("Link pendaftaran tidak valid."); return; }
+    if (!name.trim()) { setError("Nama wajib diisi."); return; }
+
+    if (emailRequired && !email.trim()) {
+      setEmailError("Email wajib diisi untuk acara ini");
+      setError("Lengkapi field yang wajib diisi.");
       return;
     }
 
@@ -213,10 +225,7 @@ export default function RegisterClient() {
       return;
     }
 
-    if (sigRef.current?.isEmpty()) {
-      setError("Tanda tangan dulu ya.");
-      return;
-    }
+    if (sigRef.current?.isEmpty()) { setError("Tanda tangan dulu ya."); return; }
 
     for (const field of customFields) {
       if (field.required && !customData[field.id]?.trim()) {
@@ -225,13 +234,14 @@ export default function RegisterClient() {
       }
     }
 
+    if (tosEnabled && !tosChecked) {
+      setError("Kamu harus menyetujui ketentuan terlebih dahulu.");
+      return;
+    }
+
     setLoading(true);
     try {
-      // cek ulang kuota sebelum simpan
-      if (await isAtCapacity()) {
-        setFull(true);
-        return;
-      }
+      if (await isAtCapacity()) { setFull(true); return; }
 
       const signature = sigRef.current!.toJPEG(0.3);
       const { data, error } = await supabase
@@ -266,12 +276,9 @@ export default function RegisterClient() {
             ? String((e as Record<string, unknown>).message)
             : "Gagal mendaftar.";
       setError(msg);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // ===== Belum mount (server/client sama-sama null) =====
   if (!mounted) {
     return (
       <div className="bd flex min-h-screen items-center justify-center">
@@ -280,7 +287,6 @@ export default function RegisterClient() {
     );
   }
 
-  // ===== Link tidak valid =====
   if (eventId === null) {
     return (
       <div className="bd flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
@@ -294,16 +300,36 @@ export default function RegisterClient() {
     );
   }
 
-  // ===== Pendaftaran tutup (deadline) =====
+  if (eventNotFound) {
+    return (
+      <div className="bd flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <span className="material-symbols-outlined text-6xl" style={{ color: "var(--error)" }}>event_busy</span>
+        <h1 className="text-2xl font-bold">Event tidak ditemukan</h1>
+        <p className="max-w-sm text-sm" style={{ color: "var(--on-surface-variant)" }}>
+          Link pendaftaran ini tidak valid atau event sudah tidak tersedia.
+        </p>
+      </div>
+    );
+  }
+
+  if (pendingPayment) {
+    return (
+      <div className="bd flex min-h-screen flex-col items-center justify-center p-6 text-center">
+        <div className="glass w-full max-w-md rounded-2xl p-8">
+          <span className="material-symbols-outlined mb-4 text-7xl" style={{ color: "var(--warning)" }}>schedule</span>
+          <h1 className="mb-3 text-2xl font-bold">Pendaftaran Belum Dibuka</h1>
+          <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>
+            Penyelenggara sedang mempersiapkan acara ini. Coba lagi nanti atau hubungi penyelenggara.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (registrationClosed) {
     return (
       <div className="bd flex min-h-screen flex-col">
-        <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/5 bg-black/60 px-4 backdrop-blur-xl md:px-10">
-          <span className="material-symbols-outlined" style={{ color: "var(--on-surface-variant)" }}>layers</span>
-          <span className="text-lg font-bold">bdForms</span>
-          <span className="material-symbols-outlined" style={{ color: "var(--on-surface-variant)" }}>account_circle</span>
-        </header>
-        <main className="flex flex-grow flex-col items-center justify-center px-4 pt-28 pb-16">
+        <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
           {bannerUrl && (
             <div className="relative mb-6 aspect-video w-full max-w-md overflow-hidden rounded-2xl">
               <Image src={bannerUrl} alt="Banner event" fill className="object-cover" unoptimized loading="eager" />
@@ -313,7 +339,7 @@ export default function RegisterClient() {
             <span className="material-symbols-outlined mb-4 text-7xl" style={{ color: "var(--error)" }}>event_busy</span>
             <h1 className="mb-3 text-2xl font-bold">Pendaftaran Sudah Tutup</h1>
             <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>
-              Pendaftaran untuk {eventName || "acara ini"} telah ditutup pada {closedDeadlineLabel}
+              Pendaftaran untuk {eventName || "acara ini"} telah ditutup{closedDeadlineLabel ? ` pada ${closedDeadlineLabel}` : ""}.
             </p>
           </div>
         </main>
@@ -321,16 +347,10 @@ export default function RegisterClient() {
     );
   }
 
-  // ===== Kuota penuh =====
   if (full) {
     return (
       <div className="bd flex min-h-screen flex-col">
-        <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/5 bg-black/60 px-4 backdrop-blur-xl md:px-10">
-          <span className="material-symbols-outlined" style={{ color: "var(--on-surface-variant)" }}>layers</span>
-          <span className="text-lg font-bold">bdForms</span>
-          <span className="material-symbols-outlined" style={{ color: "var(--on-surface-variant)" }}>account_circle</span>
-        </header>
-        <main className="flex flex-grow flex-col items-center justify-center px-4 pt-28 pb-16">
+        <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
           {bannerUrl && (
             <div className="relative mb-6 aspect-video w-full max-w-md overflow-hidden rounded-2xl">
               <Image src={bannerUrl} alt="Banner event" fill className="object-cover" unoptimized loading="eager" />
@@ -348,17 +368,13 @@ export default function RegisterClient() {
     );
   }
 
+  const tosIsLong = tosText.length >= 200;
+
   return (
     <div className="bd flex min-h-screen flex-col">
-      <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/5 bg-black/60 px-4 backdrop-blur-xl md:px-10">
-        <span className="material-symbols-outlined" style={{ color: "var(--on-surface-variant)" }}>layers</span>
-        <span className="text-lg font-bold">bdForms</span>
-        <span className="material-symbols-outlined" style={{ color: "var(--on-surface-variant)" }}>account_circle</span>
-      </header>
-
-      <main className="flex flex-grow flex-col items-center justify-center px-4 pt-28 pb-16">
+      <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
         {result ? (
-          <div className="glass w-full max-w-md rounded-2xl p-8 text-center">
+          <div className="glass w-full max-w-md rounded-2xl p-8 text-center" style={{ paddingBottom: whatsappGroupUrl ? 80 : undefined }}>
             <h1 className="mb-6 text-2xl font-bold gradient-text">Pendaftaran Berhasil</h1>
             <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
               <div
@@ -380,37 +396,37 @@ export default function RegisterClient() {
                   overflow: "hidden",
                 }}
               >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.png" alt="bdForms" width={32} height={32} style={{ objectFit: "contain" }} />
-                <span style={{ color: "#0066FF", fontWeight: "bold", fontSize: 16 }}>bdForms</span>
-              </div>
-              <p style={{ fontSize: 11, color: "#5A6580", textTransform: "uppercase", letterSpacing: 1.5, margin: "0 0 16px", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {eventName || "Event"}
-              </p>
-              <div style={{ height: 1, backgroundColor: "#E0E8FF", marginBottom: 24 }} />
-              <div style={{ display: "inline-block", backgroundColor: "#ffffff", padding: "12px", borderRadius: 12, border: "1px solid #E0E8FF", marginBottom: 20 }}>
-                <QRCodeCanvas value={result.qr_token} size={180} />
-              </div>
-              <p style={{ fontSize: 20, fontWeight: 700, color: "#0A0F1E", margin: "0 0 20px" }}>{result.name}</p>
-              <p style={{ fontSize: 10, color: "#5A6580", letterSpacing: 2, textTransform: "uppercase", margin: "0 0 4px" }}>KODE CADANGAN</p>
-              <p style={{ fontSize: 28, fontWeight: 700, fontFamily: "monospace", letterSpacing: 4, color: "#0066FF", margin: "0 0 24px" }}>
-                {result.qr_token.slice(-6).toUpperCase()}
-              </p>
-              <div style={{ margin: "0 -32px", padding: "16px 32px", backgroundColor: "#F8FAFF" }}>
-                <p style={{ fontSize: 12, color: "#5A6580", margin: "0 0 4px" }}>Tunjukkan QR ini saat check-in</p>
-                <p style={{ fontSize: 11, color: "#0066FF", fontWeight: 600, margin: 0 }}>bdForms</p>
-              </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo.png" alt="bdForms" width={32} height={32} style={{ objectFit: "contain" }} />
+                  <span style={{ color: "#0066FF", fontWeight: "bold", fontSize: 16 }}>bdForms</span>
+                </div>
+                <p style={{ fontSize: 11, color: "#5A6580", textTransform: "uppercase", letterSpacing: 1.5, margin: "0 0 16px", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {eventName || "Event"}
+                </p>
+                <div style={{ height: 1, backgroundColor: "#E0E8FF", marginBottom: 24 }} />
+                <div style={{ display: "inline-block", backgroundColor: "#ffffff", padding: "12px", borderRadius: 12, border: "1px solid #E0E8FF", marginBottom: 20 }}>
+                  <QRCodeCanvas value={result.qr_token} size={180} />
+                </div>
+                <p style={{ fontSize: 20, fontWeight: 700, color: "#0A0F1E", margin: "0 0 20px" }}>{result.name}</p>
+                <p style={{ fontSize: 10, color: "#5A6580", letterSpacing: 2, textTransform: "uppercase", margin: "0 0 4px" }}>KODE CADANGAN</p>
+                <p style={{ fontSize: 28, fontWeight: 700, fontFamily: "monospace", letterSpacing: 4, color: "#0066FF", margin: "0 0 24px" }}>
+                  {result.qr_token.slice(-6).toUpperCase()}
+                </p>
+                <div style={{ margin: "0 -32px", padding: "16px 32px", backgroundColor: "#F8FAFF" }}>
+                  <p style={{ fontSize: 12, color: "#5A6580", margin: "0 0 4px" }}>Tunjukkan QR ini saat check-in</p>
+                  <p style={{ fontSize: 11, color: "#0066FF", fontWeight: 600, margin: 0 }}>bdForms</p>
+                </div>
               </div>
             </div>
             {email.trim() && emailStatus === "sent" && (
               <p className="mb-4 text-sm" style={{ color: "var(--on-surface-variant)" }}>
-                ✉️ Tiket juga dikirim ke {email.trim()}
+                ✉️ Tiket dikirim ke {email.trim()}
               </p>
             )}
             {email.trim() && emailStatus === "failed" && (
               <p className="mb-4 text-sm" style={{ color: "var(--on-surface-variant)" }}>
-                ⚠️ Tiket gagal dikirim ke email. Silakan download manual di atas.
+                ⚠️ Gagal kirim email, silakan download tiket manual
               </p>
             )}
             <button
@@ -422,28 +438,9 @@ export default function RegisterClient() {
               <span className="material-symbols-outlined">download</span>
               Download Tiket
             </button>
-            {!isLoggedIn && showSignupBanner && (
-              <div className="rounded-xl border p-4 text-left" style={{ borderColor: "rgba(91,255,161,0.4)" }}>
-                <p className="mb-3 text-sm">💡 Buat akun gratis untuk simpan riwayat event yang kamu ikuti</p>
-                <div className="flex items-center gap-3">
-                  <Link
-                    href="/auth/signup"
-                    className="rounded-lg border px-4 py-2 text-sm font-medium"
-                    style={{ borderColor: "var(--green)", color: "var(--green)" }}
-                  >
-                    Buat Akun
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setShowSignupBanner(false)}
-                    className="text-sm underline"
-                    style={{ color: "var(--on-surface-variant)" }}
-                  >
-                    Lewati
-                  </button>
-                </div>
-              </div>
-            )}
+
+
+
           </div>
         ) : (
           <>
@@ -453,137 +450,233 @@ export default function RegisterClient() {
               </div>
             )}
             <div className="glass w-full max-w-md rounded-2xl p-8">
-            <h1 className="mb-8 text-center text-2xl font-bold">Registrasi Kehadiran</h1>
-            <div className="flex flex-col gap-4">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama Lengkap" className="bd-input w-full rounded-lg p-3" />
-              <div>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (opsional)" className="bd-input w-full rounded-lg p-3" />
-                <p className="mt-1 pl-1 text-xs" style={{ color: "var(--on-surface-variant)" }}>
-                  💌 Isi email biar tiket QR otomatis dikirim ke inbox kamu sebagai cadangan.
-                </p>
-              </div>
-              {PRESET_FIELDS.map((field) => {
-                const cfg = fieldConfig[field.key];
-                if (!cfg.enabled) return null;
-                return (
-                  <div key={field.key}>
-                    <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
-                      {field.label}{cfg.required ? " *" : ""}
-                    </label>
-                    <input
-                      type={field.type}
-                      value={extraData[field.key] ?? ""}
-                      onChange={(e) => {
-                        setExtraData((prev) => ({ ...prev, [field.key]: e.target.value }));
-                        if (fieldErrors[field.key]) {
-                          setFieldErrors((prev) => {
-                            const next = { ...prev };
-                            delete next[field.key];
-                            return next;
-                          });
-                        }
-                      }}
-                      placeholder={field.placeholder}
-                      required={cfg.required}
-                      className="bd-input w-full rounded-lg p-3"
-                    />
-                    {fieldErrors[field.key] && (
-                      <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors[field.key]}</p>
-                    )}
-                  </div>
-                );
-              })}
-              {fieldConfig.customQuestions.map((q) => (
-                <div key={q.id}>
-                  <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
-                    {q.label || "Pertanyaan"}{q.required ? " *" : ""}
-                  </label>
+              <h1 className="mb-8 text-center text-2xl font-bold">Registrasi Kehadiran</h1>
+              <div className="flex flex-col gap-4">
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama Lengkap" className="bd-input w-full rounded-lg p-3" />
+
+                {/* Email field */}
+                <div>
                   <input
-                    type="text"
-                    value={extraData[q.id] ?? ""}
-                    onChange={(e) => {
-                      setExtraData((prev) => ({ ...prev, [q.id]: e.target.value }));
-                      if (fieldErrors[q.id]) {
-                        setFieldErrors((prev) => {
-                          const next = { ...prev };
-                          delete next[q.id];
-                          return next;
-                        });
-                      }
-                    }}
-                    required={q.required}
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
+                    placeholder={emailRequired ? "Email *" : "Email (opsional)"}
+                    required={emailRequired}
                     className="bd-input w-full rounded-lg p-3"
                   />
-                  {fieldErrors[q.id] && (
-                    <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors[q.id]}</p>
+                  {emailError && (
+                    <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{emailError}</p>
                   )}
                 </div>
-              ))}
-              {customFields.map((field) => (
-                <div key={field.id}>
-                  <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
-                    {field.label || "Field"}
-                    {field.required && <span style={{ color: "var(--error)" }}> *</span>}
-                  </label>
-                  {field.type === "textarea" ? (
-                    <textarea
-                      value={customData[field.id] ?? ""}
-                      onChange={(e) => setCustomData((prev) => ({ ...prev, [field.id]: e.target.value }))}
-                      placeholder={field.placeholder}
-                      required={field.required}
-                      rows={3}
-                      className="bd-input w-full rounded-lg p-3"
-                    />
-                  ) : field.type === "select" ? (
-                    <select
-                      value={customData[field.id] ?? ""}
-                      onChange={(e) => setCustomData((prev) => ({ ...prev, [field.id]: e.target.value }))}
-                      required={field.required}
-                      className="bd-input w-full rounded-lg p-3"
-                    >
-                      <option value="">Pilih...</option>
-                      {(field.options ?? []).map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
+
+                {PRESET_FIELDS.map((field) => {
+                  const cfg = fieldConfig[field.key];
+                  if (!cfg.enabled) return null;
+                  return (
+                    <div key={field.key}>
+                      <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
+                        {field.label}{cfg.required ? " *" : ""}
+                      </label>
+                      <input
+                        type={field.type}
+                        value={extraData[field.key] ?? ""}
+                        onChange={(e) => {
+                          setExtraData((prev) => ({ ...prev, [field.key]: e.target.value }));
+                          if (fieldErrors[field.key]) {
+                            setFieldErrors((prev) => { const next = { ...prev }; delete next[field.key]; return next; });
+                          }
+                        }}
+                        placeholder={field.placeholder}
+                        required={cfg.required}
+                        className="bd-input w-full rounded-lg p-3"
+                      />
+                      {fieldErrors[field.key] && (
+                        <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors[field.key]}</p>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {fieldConfig.customQuestions.map((q) => (
+                  <div key={q.id}>
+                    <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
+                      {q.label || "Pertanyaan"}{q.required ? " *" : ""}
+                    </label>
                     <input
-                      type={field.type === "phone" ? "tel" : field.type}
-                      value={customData[field.id] ?? ""}
-                      onChange={(e) => setCustomData((prev) => ({ ...prev, [field.id]: e.target.value }))}
-                      placeholder={field.placeholder}
-                      required={field.required}
+                      type="text"
+                      value={extraData[q.id] ?? ""}
+                      onChange={(e) => {
+                        setExtraData((prev) => ({ ...prev, [q.id]: e.target.value }));
+                        if (fieldErrors[q.id]) {
+                          setFieldErrors((prev) => { const next = { ...prev }; delete next[q.id]; return next; });
+                        }
+                      }}
+                      required={q.required}
                       className="bd-input w-full rounded-lg p-3"
                     />
-                  )}
+                    {fieldErrors[q.id] && (
+                      <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors[q.id]}</p>
+                    )}
+                  </div>
+                ))}
+
+                {customFields.map((field) => (
+                  <div key={field.id}>
+                    <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
+                      {field.label || "Field"}
+                      {field.required && <span style={{ color: "var(--error)" }}> *</span>}
+                    </label>
+                    {field.type === "textarea" ? (
+                      <textarea
+                        value={customData[field.id] ?? ""}
+                        onChange={(e) => setCustomData((prev) => ({ ...prev, [field.id]: e.target.value }))}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        rows={3}
+                        className="bd-input w-full rounded-lg p-3"
+                      />
+                    ) : field.type === "select" ? (
+                      <select
+                        value={customData[field.id] ?? ""}
+                        onChange={(e) => setCustomData((prev) => ({ ...prev, [field.id]: e.target.value }))}
+                        required={field.required}
+                        className="bd-input w-full rounded-lg p-3"
+                      >
+                        <option value="">Pilih...</option>
+                        {(field.options ?? []).map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type === "phone" ? "tel" : field.type}
+                        value={customData[field.id] ?? ""}
+                        onChange={(e) => setCustomData((prev) => ({ ...prev, [field.id]: e.target.value }))}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        className="bd-input w-full rounded-lg p-3"
+                      />
+                    )}
+                  </div>
+                ))}
+
+                <div>
+                  <p className="mb-2 text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Tanda Tangan</p>
+                  <div className="overflow-hidden rounded-xl border-2 border-dashed" style={{ borderColor: "var(--outline-variant)" }}>
+                    <SignaturePad ref={sigRef} />
+                  </div>
+                  <button type="button" onClick={() => sigRef.current?.clear()} className="mt-2 text-sm underline" style={{ color: "var(--on-surface-variant)" }}>
+                    Hapus tanda tangan
+                  </button>
                 </div>
-              ))}
-              <div>
-                <p className="mb-2 text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Tanda Tangan</p>
-                <div className="overflow-hidden rounded-xl border-2 border-dashed" style={{ borderColor: "var(--outline-variant)" }}>
-                  <SignaturePad ref={sigRef} />
-                </div>
-                <button type="button" onClick={() => sigRef.current?.clear()} className="mt-2 text-sm underline" style={{ color: "var(--on-surface-variant)" }}>
-                  Hapus tanda tangan
+
+                {/* ToS section */}
+                {tosEnabled && tosText && (
+                  <div className="rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
+                    <p className="mb-3 text-xs font-bold uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Ketentuan Acara</p>
+                    <div className="mb-3 text-sm" style={{ color: "var(--on-surface-variant)" }}>
+                      {tosIsLong && !tosExpanded ? (
+                        <>
+                          <span>{tosText.slice(0, 100)}...</span>
+                          {" "}
+                          <button
+                            type="button"
+                            onClick={() => setTosExpanded(true)}
+                            className="underline"
+                            style={{ color: "var(--primary)" }}
+                          >
+                            Selengkapnya
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span>{tosText}</span>
+                          {tosIsLong && (
+                            <>
+                              {" "}
+                              <button
+                                type="button"
+                                onClick={() => setTosExpanded(false)}
+                                className="underline"
+                                style={{ color: "var(--primary)" }}
+                              >
+                                Sembunyikan
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={tosChecked}
+                        onChange={(e) => setTosChecked(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded"
+                        style={{ accentColor: "var(--primary)" }}
+                      />
+                      <span className="text-sm">
+                        Saya menyetujui ketentuan di atas dan bersedia data saya digunakan untuk keperluan acara ini
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {error && <p className="text-sm" style={{ color: "var(--error)" }}>{error}</p>}
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading || eventId === undefined || (tosEnabled && !tosChecked)}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-3 font-bold transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                  style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}
+                >
+                  <span className="material-symbols-outlined">qr_code</span>
+                  {loading ? "Memproses..." : "Daftar & Dapatkan QR Code"}
                 </button>
               </div>
-              {error && <p className="text-sm" style={{ color: "var(--error)" }}>{error}</p>}
-              <button
-                onClick={handleSubmit}
-                disabled={loading || eventId === undefined}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg py-3 font-bold transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-                style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}
-              >
-                <span className="material-symbols-outlined">qr_code</span>
-                {loading ? "Memproses..." : "Daftar & Dapatkan QR Code"}
-              </button>
             </div>
-          </div>
           </>
         )}
       </main>
+      {result && whatsappGroupUrl && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'var(--surface)',
+          borderTop: '1px solid var(--outline)',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+          padding: '12px 16px',
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>groups</span>
+            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--on-surface)' }}>
+              Gabung grup WhatsApp acara
+            </span>
+          </div>
+          <a
+            href={whatsappGroupUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: 'var(--primary)',
+              color: 'var(--on-primary)',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Gabung →
+          </a>
+        </div>
+      )}
     </div>
   );
 }

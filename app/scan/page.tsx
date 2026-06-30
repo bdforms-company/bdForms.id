@@ -82,14 +82,81 @@ export default function ScanPage() {
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lockRef = useRef(false);
-  const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info" | "warning" }[]>([]);
 
-  const showToast = useCallback((message: string, type: "success" | "error" | "info" | "warning" = "success", duration = 3000) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
+  const [activeToast, setActiveToast] = useState<{
+    message: string;
+    type: 'VERIFIED' | 'DUPLICATE' | 'NOTFOUND';
+    style: React.CSSProperties;
+  } | null>(null);
+
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const getRandomPositionStyle = () => {
+    const positions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center'] as const;
+    const chosen = positions[Math.floor(Math.random() * positions.length)];
+    
+    // Generate random value between 15px and 40px
+    const getRandomOffset = () => `${Math.floor(Math.random() * 26) + 15}px`;
+    
+    const baseStyle: any = {
+      position: 'fixed',
+      zIndex: 99999,
+    };
+    
+    switch (chosen) {
+      case 'top-left':
+        return { ...baseStyle, top: getRandomOffset(), left: getRandomOffset() };
+      case 'top-right':
+        return { ...baseStyle, top: getRandomOffset(), right: getRandomOffset() };
+      case 'bottom-left':
+        return { ...baseStyle, bottom: getRandomOffset(), left: getRandomOffset() };
+      case 'bottom-right':
+        return { ...baseStyle, bottom: getRandomOffset(), right: getRandomOffset() };
+      case 'top-center':
+        const centerOffset = Math.floor(Math.random() * 21) - 10; // -10px to +10px
+        return {
+          ...baseStyle,
+          top: getRandomOffset(),
+          left: `calc(50% + ${centerOffset}px)`,
+          transform: 'translateX(-50%)',
+        };
+    }
+  };
+
+  const getToastStyle = (type: 'VERIFIED' | 'DUPLICATE' | 'NOTFOUND'): React.CSSProperties => {
+    let background = '#5A6580';
+    if (type === 'VERIFIED') background = '#16A34A';
+    else if (type === 'DUPLICATE') background = '#D97706';
+    
+    return {
+      background,
+      color: '#FFFFFF',
+      padding: '16px 24px',
+      borderRadius: '12px',
+      fontSize: '16px',
+      fontWeight: 600,
+      maxWidth: '280px',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+    };
+  };
+
+  const showAutoScanToast = useCallback((message: string, type: 'VERIFIED' | 'DUPLICATE' | 'NOTFOUND') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    
+    const positionStyle = getRandomPositionStyle();
+    const baseStyle = getToastStyle(type);
+    
+    setActiveToast({
+      message,
+      type,
+      style: { ...baseStyle, ...positionStyle } as React.CSSProperties,
+    });
+    
+    toastTimerRef.current = setTimeout(() => {
+      setActiveToast(null);
+    }, 1200);
   }, []);
 
   const [verifiedCount, setVerifiedCount] = useState(0);
@@ -110,7 +177,7 @@ export default function ScanPage() {
 
     if (autoScan) {
       if (result === "VERIFIED") {
-        showToast(`✓ ${participant?.name || "Participant"} — Check-in Berhasil`, "success", 2000);
+        showAutoScanToast(`Check-in Berhasil — ${participant?.name || "Participant"}`, "VERIFIED");
         setVerifiedCount(prev => prev + 1);
         if (qrReaderDivRef.current) {
           qrReaderDivRef.current.classList.add('flash-green');
@@ -119,10 +186,10 @@ export default function ScanPage() {
           }, 300);
         }
       } else if (result === "DUPLICATE") {
-        showToast(`⚠ Sudah Check-in — ${participant?.name || "Participant"}`, "error", 3000);
+        showAutoScanToast(`Sudah Check-in — ${participant?.name || "Participant"}`, "DUPLICATE");
         setDuplicateCount(prev => prev + 1);
       } else { // NOTFOUND
-        showToast("✗ QR Tidak Dikenali", "info", 2000);
+        showAutoScanToast("QR Tidak Dikenali", "NOTFOUND");
         setNotFoundCount(prev => prev + 1);
       }
 
@@ -139,21 +206,21 @@ export default function ScanPage() {
           return prev - 0.1;
         });
       }, 100);
-
-      // Immediately reset for next scan in autoScan mode
-      // setUi("scanning"); // Already in scanning state, no need to change
     } else {
       if (result === "VERIFIED") setUi("verified");
       else if (result === "DUPLICATE") setUi("duplicate");
       else setUi("notfound");
     }
-  }, [showToast, autoScan, validateScan, processCheckIn, participants]);
+  }, [showAutoScanToast, autoScan, validateScan, processCheckIn, participants]);
 
   // Cooldown effect cleanup
   useEffect(() => {
     return () => {
       if (cooldownTimerRef.current) {
         clearInterval(cooldownTimerRef.current);
+      }
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
       }
     };
   }, []);
@@ -250,9 +317,7 @@ export default function ScanPage() {
     const qr = new Html5Qrcode("qr-reader");
     scannerRef.current = qr;
 
-    const qrboxConfig = autoScan
-      ? { width: window.innerWidth * 0.8, height: window.innerHeight * 0.6 }
-      : { width: 300, height: 300 };
+    const qrboxConfig = { width: 300, height: 300 };
 
     qr.start(
       { facingMode: "environment" },
@@ -368,19 +433,13 @@ export default function ScanPage() {
   if (ui === "scanning") {
     if (autoScan) {
       return (
-        <div className="fixed inset-0 bg-black flex items-center justify-center">
-          <button
-            onClick={backToReady}
-            className="absolute top-4 right-4 rounded-full p-2 text-white z-50"
-            style={{ background: "rgba(0,0,0,0.5)" }}
-          >
-            ✕ Keluar Auto-Scan
-          </button>
+        <div className="bd flex min-h-screen flex-col items-center gap-4 px-4 pt-10 relative">
+          <h1 className="text-xl font-bold">Arahkan kamera ke QR (Auto-Scan)</h1>
           <div
             id="qr-reader"
             ref={qrReaderDivRef}
-            className="w-[80vw] h-[60vh] border-8 border-transparent rounded-2xl overflow-hidden relative"
-            style={{ boxShadow: "0 0 0 100vmax rgba(0,0,0,0.7)", animation: (cooldown > 0 && ui === "scanning") ? `flash-cooldown ${cooldown * 1000}ms linear forwards` : 'none' }}
+            className="w-full max-w-lg overflow-hidden rounded-2xl border-8 border-transparent relative"
+            style={{ animation: (cooldown > 0 && ui === "scanning") ? `flash-cooldown ${cooldown * 1000}ms linear forwards` : 'none' }}
           >
             {cooldown > 0 && (
               <div className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold z-10" style={{ backdropFilter: 'blur(2px)', background: 'rgba(0,0,0,0.3)' }}>
@@ -388,44 +447,24 @@ export default function ScanPage() {
               </div>
             )}
           </div>
-          {/* Stats bar */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-black bg-opacity-70 text-white text-center flex justify-around text-lg">
-            <span>✓ {verifiedCount} Check-in</span>
-            <span>⚠ {duplicateCount} Duplikat</span>
-            <span>✗ {notFoundCount} Tidak Dikenali</span>
-          </div>
-          {/* Toast Container */}
-          <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none">
-            {toasts.map((toast) => (
-              <div
-                key={toast.id}
-                className="animate-slide-in rounded-lg px-4 py-3 shadow-lg border text-sm font-medium flex items-center justify-between text-white transition-all duration-300 pointer-events-auto"
-                style={{
-                  background:
-                    toast.type === "success"
-                      ? "rgba(91, 255, 161, 0.15)"
-                      : toast.type === "error"
-                      ? "rgba(255, 180, 171, 0.15)"
-                      : "rgba(255, 255, 255, 0.1)",
-                  borderColor:
-                    toast.type === "success"
-                      ? "rgba(91, 255, 161, 0.4)"
-                      : toast.type === "error"
-                      ? "rgba(255, 180, 171, 0.4)"
-                      : "rgba(255, 255, 255, 0.2)",
-                  boxShadow:
-                    toast.type === "success"
-                      ? "0 0 15px rgba(91, 255, 161, 0.2)"
-                      : toast.type === "error"
-                      ? "0 0 15px rgba(255, 180, 171, 0.2)"
-                      : "0 0 15px rgba(255, 255, 255, 0.1)",
-                  backdropFilter: "blur(8px)",
-                }}
+          <button onClick={backToReady} className="rounded-lg border px-6 py-2" style={{ borderColor: "var(--outline-variant)" }}>✕ Keluar Auto-Scan</button>
+
+          {/* Active Toast Notification */}
+          {activeToast && (
+            <div
+              className="animate-toast"
+              style={{ ...activeToast.style, display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1", flexShrink: 0 }}
               >
-                <span>{toast.message}</span>
-              </div>
-            ))}
-          </div>
+                {activeToast.type === 'VERIFIED' ? 'check_circle' : activeToast.type === 'DUPLICATE' ? 'error' : 'help'}
+              </span>
+              {activeToast.message}
+            </div>
+          )}
+
           <style jsx>{`
             .flash-green {
               animation: green-border-flash 0.3s ease-out forwards;
@@ -440,18 +479,14 @@ export default function ScanPage() {
               50% { border-color: rgba(255,255,255,0.7); }
               100% { border-color: transparent; }
             }
-            @keyframes slide-in-toast {
-              from {
-                transform: translateX(100%);
-                opacity: 0;
-              }
-              to {
-                transform: translateX(0);
-                opacity: 1;
-              }
+            @keyframes toast-fade-in-out {
+              0% { opacity: 0; }
+              16.6% { opacity: 1; }
+              83.3% { opacity: 1; }
+              100% { opacity: 0; }
             }
-            .animate-slide-in {
-              animation: slide-in-toast 0.2s ease-out forwards;
+            .animate-toast {
+              animation: toast-fade-in-out 1.2s ease-in-out forwards;
             }
           `}</style>
         </div>

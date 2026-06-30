@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import RegisterClient from "./RegisterClient";
 
-const GENERIC_TITLE = "Registrasi | bdForms";
-
-function getBaseUrl() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
-}
+const SITE_URL = "https://www.bdforms.id";
 
 type Props = {
   searchParams: Promise<{ eventId?: string | string[] }>;
@@ -19,26 +13,31 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const eventId = typeof params.eventId === "string" ? params.eventId : undefined;
 
   if (!eventId) {
-    return { title: GENERIC_TITLE };
+    return {
+      title: "Registrasi Event | bdForms",
+      description: "Daftar untuk hadir di acara ini menggunakan bdForms.",
+    };
   }
 
-  const { data } = await supabase
+  const supabase = await createSupabaseServerClient();
+  const { data: event } = await supabase
     .from("events")
     .select("name, banner_url")
     .eq("id", eventId)
     .single();
 
-  if (!data?.name) {
+  if (!event?.name) {
     return {
-      title: 'Registrasi Event — bdForms',
-      description: 'Daftar untuk hadir di event. Isi form dan dapatkan QR tiket instan.'
+      title: "Registrasi Event | bdForms",
+      description: "Daftar untuk hadir di acara ini menggunakan bdForms.",
     };
   }
 
-  const eventName = data.name;
-  const title = `${eventName} — Daftar Sekarang | bdForms`;
-  const description = `Daftar untuk hadir di ${eventName}. Isi form dan dapatkan QR tiket instan.`;
-  const imageUrl = data.banner_url || `${getBaseUrl()}/og-default.png`;
+  const title = `${event.name} — Daftar Sekarang | bdForms`;
+  const description = `Daftar untuk hadir di ${event.name}. Dapatkan tiket QR digital instan. Powered by bdForms.`;
+  const images = event.banner_url
+    ? [{ url: event.banner_url, width: 1200, height: 630, alt: event.name }]
+    : [{ url: `${SITE_URL}/logo.png`, width: 512, height: 512, alt: "bdForms" }];
 
   return {
     title,
@@ -46,14 +45,16 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     openGraph: {
       title,
       description,
-      url: `${getBaseUrl()}/register?eventId=${eventId}`,
-      images: [{ url: imageUrl }],
+      url: `${SITE_URL}/register?eventId=${eventId}`,
+      images,
+      type: "website",
+      siteName: "bdForms",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [imageUrl],
+      images: images.map((i) => i.url),
     },
   };
 }

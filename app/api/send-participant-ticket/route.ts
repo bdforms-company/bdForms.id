@@ -43,50 +43,135 @@ function buildEmailHtml(
 ) {
   const bannerRow = bannerUrl
     ? `<tr>
-            <td style="padding: 0 0 24px 0;">
-              <img src="${escapeHtml(bannerUrl)}" alt="${escapeHtml(eventName)}" width="100%" style="max-width: 100%; border-radius: 12px; display: block;" />
+            <td style="padding:0 0 24px 0;">
+              <img src="${escapeHtml(bannerUrl)}" width="600" style="max-width:100%;border-radius:12px;display:block;" alt="${escapeHtml(eventName)}" />
             </td>
           </tr>`
     : "";
 
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background-color: #0a0c0c;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0a0c0c;">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+</head>
+<body style="margin:0;padding:0;background:#F8FAFF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F8FAFF;">
     <tr>
-      <td align="center" style="padding: 32px 16px;">
-        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%;">
+      <td align="center" style="padding:32px 16px;">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+
+          <!-- Header: Logo + Brand -->
           <tr>
-            <td style="padding: 0 0 24px 0; font-family: Arial, sans-serif; font-size: 18px; font-weight: bold; color: #5bffa1;">⬡ bdForms</td>
-          </tr>
-          <tr>
-            <td style="padding: 0 0 8px 0; font-family: Arial, sans-serif; font-size: 20px; font-weight: bold; color: #e8eaed;">Hai, ${escapeHtml(participantName)} 👋</td>
-          </tr>
-          <tr>
-            <td style="padding: 0 0 24px 0; font-family: Arial, sans-serif; font-size: 16px; color: #8a9299;">Pendaftaran kamu untuk <span style="color: #e8eaed; font-weight: bold;">${escapeHtml(eventName)}</span> berhasil!</td>
-          </tr>
-          ${bannerRow}
-          <tr>
-            <td style="padding: 0 0 24px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0f1212; border: 1px solid #1e2a2c; border-radius: 16px;">
+            <td style="padding:0 0 24px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="padding: 24px; text-align: center;">
-                    <img src="${qrDataUrl}" width="240" alt="QR Code" style="display: block; margin: 0 auto 20px auto;" />
-                    <p style="margin: 0 0 20px 0; font-family: Arial, sans-serif; font-size: 22px; font-weight: bold; color: #e8eaed;">${escapeHtml(participantName)}</p>
-                    <p style="margin: 0 0 4px 0; font-family: Arial, sans-serif; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #8a9299;">KODE CADANGAN</p>
-                    <p style="margin: 0 0 24px 0; font-family: monospace; font-size: 28px; font-weight: bold; letter-spacing: 4px; color: #5bffa1;">${escapeHtml(backupCode)}</p>
-                    <p style="margin: 0; font-family: Arial, sans-serif; font-size: 13px; color: #8a9299;">Tunjukkan QR ini saat check-in. Screenshot atau download email ini sebagai cadangan.</p>
+                  <td>
+                    <span style="font-size:20px;font-weight:700;color:#0066FF;">⚡ bdForms</span>
+                  </td>
+                  <td align="right">
+                    <span style="font-size:12px;color:#5A6580;">Tiket Digital</span>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
+
+          <!-- Greeting -->
           <tr>
-            <td style="padding: 24px 0 0 0; border-top: 1px solid #1e2a2c; font-family: Arial, sans-serif; font-size: 12px; color: #8a9299; text-align: center;">
-              Powered by <span style="color: #5bffa1;">bdForms</span>
+            <td style="padding:0 0 8px 0;font-size:24px;font-weight:700;color:#0A0F1E;">
+              Hai, ${escapeHtml(participantName)} 👋
             </td>
           </tr>
+          <tr>
+            <td style="padding:0 0 24px 0;font-size:15px;color:#5A6580;">
+              Pendaftaran kamu untuk <strong style="color:#0A0F1E;">${escapeHtml(eventName)}</strong> berhasil!
+            </td>
+          </tr>
+
+          <!-- Banner (if exists) -->
+          ${bannerRow}
+
+          <!-- Ticket Card -->
+          <tr>
+            <td style="padding:0 0 24px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                style="background:#FFFFFF;border:2px solid #0066FF;border-radius:16px;overflow:hidden;">
+
+                <!-- Ticket Header -->
+                <tr>
+                  <td style="background:linear-gradient(135deg,#0066FF,#00C8FF);padding:20px 24px;">
+                    <p style="margin:0;font-size:11px;font-weight:600;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:0.1em;">Tiket Masuk</p>
+                    <p style="margin:4px 0 0 0;font-size:18px;font-weight:700;color:#FFFFFF;">${escapeHtml(eventName)}</p>
+                  </td>
+                </tr>
+
+                <!-- QR Code -->
+                <tr>
+                  <td align="center" style="padding:32px 24px 16px 24px;">
+                    <img src="${escapeHtml(qrDataUrl)}" width="220" height="220"
+                      style="display:block;border:1px solid #E0E8FF;border-radius:12px;padding:12px;background:#FFFFFF;"
+                      alt="QR Code" />
+                  </td>
+                </tr>
+
+                <!-- Participant Name -->
+                <tr>
+                  <td align="center" style="padding:0 24px 8px 24px;">
+                    <p style="margin:0;font-size:22px;font-weight:700;color:#0A0F1E;">${escapeHtml(participantName)}</p>
+                  </td>
+                </tr>
+
+                <!-- Backup Code -->
+                <tr>
+                  <td align="center" style="padding:0 24px 24px 24px;">
+                    <p style="margin:0 0 4px 0;font-size:10px;font-weight:600;color:#5A6580;text-transform:uppercase;letter-spacing:0.15em;">Kode Cadangan</p>
+                    <p style="margin:0;font-size:28px;font-weight:700;color:#0066FF;font-family:monospace;letter-spacing:0.2em;">${escapeHtml(backupCode)}</p>
+                  </td>
+                </tr>
+
+                <!-- Divider -->
+                <tr>
+                  <td style="padding:0 24px;">
+                    <hr style="border:none;border-top:1px dashed #E0E8FF;margin:0;" />
+                  </td>
+                </tr>
+
+                <!-- Footer instruction -->
+                <tr>
+                  <td align="center" style="padding:16px 24px;background:#F8FAFF;">
+                    <p style="margin:0;font-size:13px;color:#5A6580;">
+                      Tunjukkan QR ini saat check-in. Screenshot atau simpan email ini sebagai cadangan.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+
+          <!-- Tips -->
+          <tr>
+            <td style="padding:0 0 24px 0;background:#EEF3FF;border-radius:12px;padding:16px 20px;">
+              <p style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:#0066FF;">💡 Tips</p>
+              <ul style="margin:0;padding:0 0 0 16px;font-size:12px;color:#5A6580;line-height:1.6;">
+                <li>Screenshot tiket ini sebagai cadangan</li>
+                <li>Datang 15 menit sebelum acara dimulai</li>
+                <li>Tunjukkan QR code atau kode cadangan ke panitia</li>
+              </ul>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 0 0 0;border-top:1px solid #E0E8FF;text-align:center;">
+              <p style="margin:0 0 4px 0;font-size:14px;font-weight:700;color:#0066FF;">⚡ bdForms</p>
+              <p style="margin:0;font-size:11px;color:#5A6580;">Fast-Track Event Registration Platform · bdforms.id</p>
+              <p style="margin:8px 0 0 0;font-size:11px;color:#C8D4F0;">© 2026 bdForms. Hak cipta dilindungi.</p>
+            </td>
+          </tr>
+
         </table>
       </td>
     </tr>
