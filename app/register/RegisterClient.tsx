@@ -372,9 +372,19 @@ export default function RegisterClient() {
 
   return (
     <div className="bd flex min-h-screen flex-col">
+      <style>{`
+        @keyframes slideUpBar {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        @keyframes pulseOnce {
+          0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.5); }
+          100% { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
+        }
+      `}</style>
       <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
         {result ? (
-          <div className="glass w-full max-w-md rounded-2xl p-8 text-center" style={{ paddingBottom: whatsappGroupUrl ? 80 : undefined }}>
+          <div className="glass w-full max-w-md rounded-2xl p-8 text-center" style={{ paddingBottom: whatsappGroupUrl ? 90 : undefined }}>
             <h1 className="mb-6 text-2xl font-bold gradient-text">Pendaftaran Berhasil</h1>
             <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
               <div
@@ -643,38 +653,58 @@ export default function RegisterClient() {
           bottom: 0,
           left: 0,
           right: 0,
-          background: 'var(--surface)',
-          borderTop: '1px solid var(--outline)',
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
-          padding: '12px 16px',
+          background: 'linear-gradient(135deg, #0066FF, #00C8FF)',
+          padding: '16px',
           zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
+          boxShadow: '0 -8px 32px rgba(0,102,255,0.25)',
+          animation: 'slideUpBar 0.4s ease-out 1s both',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>groups</span>
-            <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--on-surface)' }}>
-              Gabung grup WhatsApp acara
-            </span>
+          <div style={{
+            maxWidth: '420px',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              animation: 'pulseOnce 1.5s ease-out 1.5s',
+            }}>
+              <span className="material-symbols-outlined" style={{ color: '#FFFFFF', fontSize: '22px' }}>groups</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
+                Jangan lewatkan info acara!
+              </p>
+              <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.85)' }}>
+                Gabung grup WhatsApp sekarang
+              </p>
+            </div>
+            <a
+              href={whatsappGroupUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: '#FFFFFF',
+                color: '#0066FF',
+                padding: '10px 18px',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              Gabung →
+            </a>
           </div>
-          <a
-            href={whatsappGroupUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              background: 'var(--primary)',
-              color: 'var(--on-primary)',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: 700,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Gabung →
-          </a>
         </div>
       )}
     </div>
