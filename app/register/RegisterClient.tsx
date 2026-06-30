@@ -332,7 +332,7 @@ export default function RegisterClient() {
         <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
           {bannerUrl && (
             <div className="relative mb-6 aspect-video w-full max-w-md overflow-hidden rounded-2xl">
-              <Image src={bannerUrl} alt="Banner event" fill className="object-cover" unoptimized loading="eager" />
+              <Image src={bannerUrl} alt="Banner event" fill className="object-cover" loading="eager" />
             </div>
           )}
           <div className="glass w-full max-w-md rounded-2xl p-8 text-center">
@@ -353,7 +353,7 @@ export default function RegisterClient() {
         <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
           {bannerUrl && (
             <div className="relative mb-6 aspect-video w-full max-w-md overflow-hidden rounded-2xl">
-              <Image src={bannerUrl} alt="Banner event" fill className="object-cover" unoptimized loading="eager" />
+              <Image src={bannerUrl} alt="Banner event" fill className="object-cover" loading="eager" />
             </div>
           )}
           <div className="glass w-full max-w-md rounded-2xl p-8 text-center">
@@ -446,7 +446,7 @@ export default function RegisterClient() {
           <>
             {bannerUrl && (
               <div className="relative mb-6 aspect-video w-full max-w-md overflow-hidden rounded-2xl">
-                <Image src={bannerUrl} alt="Banner event" fill className="object-cover" unoptimized loading="eager" />
+                <Image src={bannerUrl} alt="Banner event" fill className="object-cover" loading="eager" />
               </div>
             )}
             <div className="glass w-full max-w-md rounded-2xl p-8">

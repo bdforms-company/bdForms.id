@@ -504,7 +504,7 @@ function ManageEventInner() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="glass w-full max-w-2xl rounded-2xl p-8 text-center">
             <span className="material-symbols-outlined mb-4 text-6xl" style={{ color: "rgba(255,191,0,0.9)" }}>schedule</span>
-            <h2 className="mb-4 text-2xl font-bold">⏳ Event ini menunggu konfirmasi pembayaran dari tim bdForms</h2>
+            <p className="mb-4 text-2xl font-bold">⏳ Event ini menunggu konfirmasi pembayaran dari tim bdForms</p>
             <p className="mb-8 text-base" style={{ color: "var(--on-surface-variant)" }}>
               Detail event sudah tersimpan. Semua fitur akan aktif setelah pembayaran dikonfirmasi. Hubungi kami jika butuh bantuan.
             </p>
@@ -1113,7 +1113,7 @@ function EditEventModal({
               <input type="datetime-local" value={editEventEnd} onChange={(e) => setEditEventEnd(e.target.value)} disabled={editDateFieldsLocked} min={editEventDate || undefined} className="bd-input w-full rounded-lg px-4 py-3 disabled:opacity-60" style={{ colorScheme: "dark" }} />
             </div>
             <div className="my-2 border-t pt-5" style={{ borderColor: "var(--outline-variant)" }}>
-              <h4 className="mb-2 text-sm font-bold">Konfigurasi Field Pendaftaran</h4>
+              <h3 className="mb-2 text-sm font-bold">Konfigurasi Field Pendaftaran</h3>
               {fieldConfigLocked && (
                 <p className="mb-4 rounded-lg border px-3 py-2 text-xs" style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface-variant)", background: "var(--surface-low)" }}>
                   Tidak bisa mengubah form setelah ada peserta yang mendaftar

@@ -1,6 +1,35 @@
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+
+const ALLOWED_ORIGINS = [
+  "https://www.bdforms.id",
+  "https://bdforms.id",
+  ...(process.env.NODE_ENV === "development" ? ["http://localhost:3000"] : []),
+];
+
+function isAllowedOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin") ?? request.headers.get("referer") ?? "";
+  return ALLOWED_ORIGINS.some((o) => origin.startsWith(o));
+}
+
+// Per-instance in-memory rate limiter (5 req/IP/min).
+// On Vercel serverless this is per-function-instance only, not cross-instance.
+// For production-scale rate limiting, replace with @upstash/ratelimit + Redis.
+const ipLimitMap = new Map<string, { count: number; reset: number }>();
+
+function isRateLimited(request: Request): boolean {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  const now = Date.now();
+  const entry = ipLimitMap.get(ip);
+  if (!entry || now > entry.reset) {
+    ipLimitMap.set(ip, { count: 1, reset: now + 60_000 });
+    return false;
+  }
+  if (entry.count >= 5) return true;
+  entry.count++;
+  return false;
+}
 
 const QR_OPTIONS = {
   width: 300,
@@ -9,8 +38,9 @@ const QR_OPTIONS = {
 } as const;
 
 async function getQrImageSrc(qrToken: string): Promise<string> {
+  const supabase = createSupabaseAdminClient();
   const qrBuffer = await QRCode.toBuffer(qrToken, QR_OPTIONS);
-  const filename = `${qrToken}.png`;
+  const filename = `${crypto.randomUUID()}.png`;
 
   try {
     const { error: uploadError } = await supabase.storage
@@ -181,6 +211,12 @@ function buildEmailHtml(
 }
 
 export async function POST(request: Request) {
+  if (!isAllowedOrigin(request)) {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
+  if (isRateLimited(request)) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+  }
   try {
     const body = await request.json();
     const { email, participantName, eventName, qrToken, backupCode, bannerUrl } = body;
@@ -199,10 +235,16 @@ export async function POST(request: Request) {
       bannerUrl,
     );
 
+    const brevoApiKey = process.env.BREVO_API_KEY;
+    if (!brevoApiKey) {
+      console.error("BREVO_API_KEY is not set");
+      return NextResponse.json({ ok: false, error: "Email service not configured" }, { status: 500 });
+    }
+
     const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
-        "api-key": process.env.BREVO_API_KEY!,
+        "api-key": brevoApiKey,
         "Content-Type": "application/json",
         Accept: "application/json",
       },

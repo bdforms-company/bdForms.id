@@ -35,7 +35,7 @@ export default function SiteNav() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-6">
           {/* Left: Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.png" alt="bdForms" width={32} height={32} className="h-8 w-8" />
+            <Image src="/logo.png" alt="" width={32} height={32} className="h-8 w-8" />
             <span className="text-lg font-bold" style={{ color: "var(--primary)" }}>bdForms</span>
           </Link>
 

@@ -34,7 +34,7 @@ const FEATURES_TABLE = [
 function Cell({ value }: { value: boolean | string }) {
   if (value === true) return <span className="material-symbols-outlined" style={{ color: 'var(--success)' }}>check_circle</span>
   if (value === false) return <span className="material-symbols-outlined" style={{ color: 'var(--error)', opacity: 0.4 }}>cancel</span>
-  if (value === 'soon') return <span style={{ fontSize: '11px', background: 'var(--primary-container)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>Segera</span>
+  if (value === 'soon') return <span style={{ fontSize: '11px', background: 'var(--primary-container)', color: 'var(--on-primary-container)', padding: '2px 8px', borderRadius: '999px', fontWeight: 600 }}>Segera</span>
   return <span style={{ color: 'var(--on-surface-variant)', fontSize: '14px' }}>{value}</span>
 }
 
@@ -69,7 +69,7 @@ function MockupCard() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <p className="text-xs" style={{ color: "#7A8AB0" }}>bdForms Dashboard</p>
-            <h3 className="text-lg font-bold">Seminar Teknologi Aceh</h3>
+            <p className="text-lg font-bold">Seminar Teknologi Aceh</p>
           </div>
           <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: "var(--brand-gradient)" }}>
             <span className="material-symbols-outlined">qr_code_2</span>
@@ -221,6 +221,7 @@ export default function LandingPage() {
   return (
     <div className="bd">
       <SiteNav />
+      <main>
 
       <section className="relative flex min-h-[calc(100vh-64px)] items-center overflow-hidden px-6 py-20 md:px-10">
         <div className="hero-accent" style={{ top: -120, left: -180, background: "radial-gradient(circle, rgba(0,102,255,0.12), transparent 70%)" }} />
@@ -237,7 +238,7 @@ export default function LandingPage() {
               Sistem registrasi offline-first dengan QR check-in instan. Dari seminar kampus hingga acara pemerintahan.
             </p>
             <div className="mb-10 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-              <Link href="/auth/signup" className="rounded-xl px-7 py-3.5 text-sm font-bold accent-glow" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Mulai Gratis</Link>
+              <Link href="/auth/signup" aria-label="Mulai gratis — daftar sekarang (hero)" className="rounded-xl px-7 py-3.5 text-sm font-bold accent-glow" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Mulai Gratis</Link>
               <a href="#how-it-works" className="rounded-xl border px-7 py-3.5 text-sm font-bold" style={{ borderColor: "var(--outline)", color: "var(--on-surface)" }}>Lihat Cara Kerjanya</a>
             </div>
             <div className="grid grid-cols-3 gap-4">
@@ -333,7 +334,7 @@ export default function LandingPage() {
                   <tr className="border-b" style={{ background: 'var(--surface-container)', borderColor: 'var(--outline-variant)' }}>
                     <th className="p-4 text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Fitur</th>
                     <th className="p-4 text-center font-bold">Starter</th>
-                    <th className="p-4 text-center font-bold" style={{ color: "var(--primary)" }}>Standard</th>
+                    <th className="p-4 text-center font-bold" style={{ color: "var(--on-primary-container)" }}>Standard</th>
                     <th className="p-4 text-center font-bold">Pro</th>
                     <th className="p-4 text-center font-bold">Enterprise</th>
                   </tr>
@@ -371,7 +372,7 @@ export default function LandingPage() {
             <h2 className="mx-auto mb-4 max-w-3xl text-3xl font-black md:text-5xl">Siap menghilangkan antrian di meja registrasi?</h2>
             <p className="mx-auto mb-8 max-w-2xl" style={{ color: "var(--on-surface-variant)" }}>Bergabung dengan penyelenggara event yang sudah beralih ke sistem lebih cepat.</p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row">
-              <Link href="/auth/signup" className="rounded-xl px-7 py-3.5 text-sm font-bold" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Mulai Gratis Sekarang</Link>
+              <Link href="/auth/signup" aria-label="Mulai gratis sekarang — daftar dari bagian akhir halaman" className="rounded-xl px-7 py-3.5 text-sm font-bold" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Mulai Gratis Sekarang</Link>
               <a href="https://wa.me/6285199527012" target="_blank" rel="noopener noreferrer" className="rounded-xl border px-7 py-3.5 text-sm font-bold" style={{ borderColor: "var(--outline)", color: "var(--on-surface)" }}>Hubungi Kami</a>
             </div>
           </div>
@@ -388,7 +389,7 @@ export default function LandingPage() {
                 {/* Left: Logo + Email */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <img src="/logo.png" alt="bdForms" style={{ width: '28px', height: '28px' }} />
+                    <Image src="/logo.png" alt="" width={28} height={28} style={{ objectFit: 'contain' }} />
                     <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--on-surface)' }}>bdForms</span>
                   </div>
                   <a href="mailto:contact.bdforms@gmail.com" style={{ fontSize: '13px', color: 'var(--on-surface-variant)' }}>
@@ -451,6 +452,7 @@ export default function LandingPage() {
           </footer>
         </div>
       </section>
+      </main>
     </div>
   );
 }

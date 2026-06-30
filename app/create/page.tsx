@@ -162,7 +162,13 @@ function CreateEventContent() {
         ...(docEnabled && docUrl ? { doc_url: docUrl } : {}),
         email_required: emailRequired,
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.code === "23505") {
+          setSlugError("URL ini sudah dipakai. Coba yang lain.");
+          return;
+        }
+        throw insertError;
+      }
       setCreatedEventId(newEventId);
     } catch (e) {
       console.error(e);

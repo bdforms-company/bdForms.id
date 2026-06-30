@@ -3,6 +3,35 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const ALLOWED_ORIGINS = [
+  "https://www.bdforms.id",
+  "https://bdforms.id",
+  ...(process.env.NODE_ENV === "development" ? ["http://localhost:3000"] : []),
+];
+
+function isAllowedOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin") ?? request.headers.get("referer") ?? "";
+  return ALLOWED_ORIGINS.some((o) => origin.startsWith(o));
+}
+
+// Per-instance in-memory rate limiter (5 req/IP/min).
+// On Vercel serverless this is per-function-instance only, not cross-instance.
+// For production-scale rate limiting, replace with @upstash/ratelimit + Redis.
+const ipLimitMap = new Map<string, { count: number; reset: number }>();
+
+function isRateLimited(request: Request): boolean {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  const now = Date.now();
+  const entry = ipLimitMap.get(ip);
+  if (!entry || now > entry.reset) {
+    ipLimitMap.set(ip, { count: 1, reset: now + 60_000 });
+    return false;
+  }
+  if (entry.count >= 5) return true;
+  entry.count++;
+  return false;
+}
+
 const FALLBACK_SENDER = "bdForms <onboarding@resend.dev>";
 
 function getResendFrom(): string {
@@ -182,6 +211,12 @@ function buildEmailHtml(
 }
 
 export async function POST(request: Request) {
+  if (!isAllowedOrigin(request)) {
+    return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+  }
+  if (isRateLimited(request)) {
+    return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
+  }
   try {
     const body = await request.json();
     const { email, eventName, regLink, scanLink, dashLink } = body;

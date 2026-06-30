@@ -98,7 +98,7 @@ export default function ScanPage() {
     // Generate random value between 15px and 40px
     const getRandomOffset = () => `${Math.floor(Math.random() * 26) + 15}px`;
     
-    const baseStyle: any = {
+    const baseStyle: React.CSSProperties = {
       position: 'fixed',
       zIndex: 99999,
     };

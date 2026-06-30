@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+// Known limitation: auth check is client-side only (runs in useEffect after first render).
+// Users see a loading spinner, not content, but the gap exists. Future improvement:
+// add server-side protection via Next.js middleware (middleware.ts) to redirect
+// unauthenticated requests before any HTML is sent.
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
