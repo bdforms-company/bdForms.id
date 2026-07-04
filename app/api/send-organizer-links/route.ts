@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const ALLOWED_ORIGINS = [
   "https://www.bdforms.id",
   "https://bdforms.id",
@@ -218,6 +216,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Too many requests" }, { status: 429 });
   }
   try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const body = await request.json();
     const { email, eventName, regLink, scanLink, dashLink } = body;
 
