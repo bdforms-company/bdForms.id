@@ -22,7 +22,7 @@ jobs:
       - name: Siapin Environment & API Key
         run: |
           vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          vercel env pull .env.production.local --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel env pull .env --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Web
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
