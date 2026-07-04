@@ -114,7 +114,7 @@ function base64UrlDecode(input: string): Uint8Array<ArrayBuffer> {
 }
 
 // ---------------------------------------------------------------------------
-// HTML helper
+// HTML helpers  (dark-mode design system — matches send-organizer-links)
 // ---------------------------------------------------------------------------
 
 function escapeHtml(s: string): string {
@@ -144,80 +144,178 @@ function formatDateId(isoDate: string): string {
   }
 }
 
+/**
+ * Builds the "Day of Event" morning reminder email.
+ *
+ * Design system cloned from send-organizer-links/route.ts:
+ *   bg        #0a0c0c  (outer)
+ *   card      #0f1212  (inner containers)
+ *   border    #1e2a2c
+ *   accent    #5bffa1  (neon green)
+ *   text-hi   #e8eaed
+ *   text-lo   #8a9299  (muted)
+ *   cta-bg    #5bffa1  → ink #0a0c0c
+ *
+ * @param participantName  Recipient's name
+ * @param eventName        Name of the event
+ * @param eventDate        ISO date string "yyyy-mm-dd"
+ * @param qrToken          QR token used to generate the check-in QR code URL
+ */
 function buildReminderEmailHtml(
   participantName: string,
   eventName: string,
   eventDate: string,
+  qrToken: string,
 ): string {
   const formattedDate = formatDateId(eventDate);
+  const fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+  // Generate a QR code image URL via the free Google Charts QR API so the
+  // email client can render the code inline without needing a Supabase bucket.
+  const qrSize = 220;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${qrSize}x${qrSize}&data=${encodeURIComponent(qrToken)}&format=png&margin=10`;
 
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="dark">
 </head>
-<body style="margin:0;padding:0;background:#F8FAFF;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F8FAFF;">
+<body style="margin: 0; padding: 0; background-color: #0a0c0c;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0a0c0c;">
     <tr>
-      <td align="center" style="padding:32px 16px;">
-        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+      <td align="center" style="padding: 32px 16px;">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%;">
 
-          <!-- Header -->
+          <!-- ═══════════════════════ HERO ═══════════════════════ -->
           <tr>
-            <td style="padding:0 0 24px 0;">
+            <td style="padding: 32px; background-color: #0f1212; border: 1px solid #1e2a2c; border-radius: 16px;">
+
+              <!-- Logo row -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td><span style="font-size:20px;font-weight:700;color:#0066FF;">⚡ bdForms</span></td>
-                  <td align="right"><span style="font-size:12px;color:#5A6580;">Pengingat Acara</span></td>
+                  <td style="font-family: ${fontFamily}; font-size: 18px; font-weight: bold; color: #5bffa1; vertical-align: middle;">&#11041; bdForms</td>
+                  <td align="right" style="font-family: ${fontFamily}; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #5bffa1; vertical-align: middle;">HARI-H EVENT</td>
+                </tr>
+              </table>
+
+              <!-- Spacer -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="height: 24px; line-height: 24px; font-size: 1px;">&nbsp;</td></tr>
+              </table>
+
+              <!-- Hero heading -->
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 28px; font-weight: bold; line-height: 1.3; color: #e8eaed;">Hari Ini Harinya! &#128640;</p>
+
+              <!-- Body copy -->
+              <p style="margin: 12px 0 0 0; font-family: ${fontFamily}; font-size: 14px; line-height: 1.6; color: #8a9299;">Halo <strong style="color: #e8eaed;">${escapeHtml(participantName)}</strong>, bersiaplah! Event <strong style="color: #5bffa1;">${escapeHtml(eventName)}</strong> berlangsung hari ini. Jangan sampai telat dan siapkan QR Code tiketmu di bawah ini untuk check-in.</p>
+
+              <!-- Event name pill -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
+                <tr>
+                  <td style="padding: 16px 20px; background-color: #1a1f1f; border-radius: 12px; border-left: 3px solid #5bffa1; font-family: ${fontFamily}; font-size: 20px; font-weight: bold; line-height: 1.3; color: #e8eaed;">${escapeHtml(eventName)}</td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Spacer -->
+          <tr><td style="height: 16px; line-height: 16px; font-size: 1px;">&nbsp;</td></tr>
+
+          <!-- ═══════════════════════ DATE CARD ══════════════════ -->
+          <tr>
+            <td>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0f1212; border: 1px solid #1e2a2c; border-radius: 12px;">
+                <tr>
+                  <td style="padding: 24px;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="font-family: ${fontFamily}; font-size: 20px; line-height: 1; vertical-align: middle;">
+                          <span style="font-size: 20px;">&#128197;</span>
+                          <span style="margin-left: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9299; vertical-align: middle;">TANGGAL ACARA</span>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin: 12px 0 0 0; font-family: ${fontFamily}; font-size: 18px; font-weight: bold; line-height: 1.4; color: #e8eaed;">${escapeHtml(formattedDate)}</p>
+                  </td>
                 </tr>
               </table>
             </td>
           </tr>
 
-          <!-- Reminder Badge -->
-          <tr>
-            <td style="padding:0 0 16px 0;">
-              <span style="display:inline-block;background:linear-gradient(135deg,#FF6B35,#FF8C42);color:#FFFFFF;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:6px 14px;border-radius:20px;">
-                🔔 Pengingat Hari Ini
-              </span>
-            </td>
-          </tr>
+          <!-- Spacer -->
+          <tr><td style="height: 16px; line-height: 16px; font-size: 1px;">&nbsp;</td></tr>
 
-          <!-- Greeting -->
+          <!-- ═══════════════════════ QR CODE CARD ═══════════════ -->
           <tr>
-            <td style="padding:0 0 8px 0;font-size:24px;font-weight:700;color:#0A0F1E;">
-              Hai, ${escapeHtml(participantName)}! 👋
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 0 24px 0;font-size:15px;color:#5A6580;line-height:1.6;">
-              Jangan lupa! Acara <strong style="color:#0A0F1E;">${escapeHtml(eventName)}</strong>
-              yang kamu daftarkan akan berlangsung <strong style="color:#0066FF;">hari ini</strong>.
-            </td>
-          </tr>
-
-          <!-- Event Card -->
-          <tr>
-            <td style="padding:0 0 24px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0"
-                style="background:#FFFFFF;border:2px solid #0066FF;border-radius:16px;overflow:hidden;">
+            <td>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0f1212; border: 1px solid #1e2a2c; border-radius: 12px;">
                 <tr>
-                  <td style="background:linear-gradient(135deg,#0066FF,#00C8FF);padding:20px 24px;">
-                    <p style="margin:0;font-size:11px;font-weight:600;color:rgba(255,255,255,0.8);text-transform:uppercase;letter-spacing:0.1em;">Acara Hari Ini</p>
-                    <p style="margin:4px 0 0 0;font-size:20px;font-weight:700;color:#FFFFFF;">${escapeHtml(eventName)}</p>
+                  <td style="padding: 24px;">
+
+                    <!-- Section label -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="font-family: ${fontFamily}; font-size: 20px; line-height: 1; vertical-align: middle;">
+                          <span style="font-size: 20px;">&#128248;</span>
+                          <span style="margin-left: 8px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8a9299; vertical-align: middle;">QR CODE CHECK-IN</span>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin: 12px 0 0 0; font-family: ${fontFamily}; font-size: 14px; line-height: 1.5; color: #8a9299;">Tunjukkan QR code ini ke panitia saat tiba di lokasi acara.</p>
+
+                    <!-- QR image -->
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
+                      <tr>
+                        <td align="center">
+                          <table cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 12px; padding: 16px; display: inline-block;">
+                            <tr>
+                              <td align="center" style="padding: 16px;">
+                                <img src="${escapeHtml(qrUrl)}" width="${qrSize}" height="${qrSize}" alt="QR Code Check-in" style="display: block; border: 0;" />
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- CTA button -->
+                    <table cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
+                      <tr>
+                        <td style="border-radius: 8px; background-color: #5bffa1;">
+                          <span style="display: inline-block; padding: 12px 24px; font-family: ${fontFamily}; font-size: 14px; font-weight: bold; color: #0a0c0c; text-decoration: none;">&#9989; Siap Check-in!</span>
+                        </td>
+                      </tr>
+                    </table>
+
                   </td>
                 </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Spacer -->
+          <tr><td style="height: 16px; line-height: 16px; font-size: 1px;">&nbsp;</td></tr>
+
+          <!-- ═══════════════════════ TIPS ═══════════════════════ -->
+          <tr>
+            <td>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #0a1812; border: 1px solid rgba(91,255,161,0.2); border-radius: 12px;">
                 <tr>
-                  <td style="padding:20px 24px;">
+                  <td style="padding: 20px;">
+                    <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 14px; font-weight: bold; color: #5bffa1;">&#128161; Tips hari-H</p>
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
-                        <td style="padding:0 12px 0 0;font-size:20px;">📅</td>
-                        <td>
-                          <p style="margin:0;font-size:11px;font-weight:600;color:#5A6580;text-transform:uppercase;letter-spacing:0.08em;">Tanggal</p>
-                          <p style="margin:2px 0 0 0;font-size:15px;font-weight:700;color:#0A0F1E;">${escapeHtml(formattedDate)}</p>
-                        </td>
+                        <td style="padding: 0 0 6px 0; font-family: ${fontFamily}; font-size: 13px; line-height: 1.5; color: #8a9299;">&bull;&nbsp; Datang 15 menit lebih awal untuk check-in lancar</td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 0 0 6px 0; font-family: ${fontFamily}; font-size: 13px; line-height: 1.5; color: #8a9299;">&bull;&nbsp; Screenshot QR ini sebagai cadangan jika sinyal lemah</td>
+                      </tr>
+                      <tr>
+                        <td style="font-family: ${fontFamily}; font-size: 13px; line-height: 1.5; color: #8a9299;">&bull;&nbsp; Jika QR error, tunjukkan kode pendaftaran ke panitia</td>
                       </tr>
                     </table>
                   </td>
@@ -226,24 +324,15 @@ function buildReminderEmailHtml(
             </td>
           </tr>
 
-          <!-- Tips -->
+          <!-- ═══════════════════════ FOOTER ════════════════════ -->
           <tr>
-            <td style="padding:0 0 24px 0;background:#EEF3FF;border-radius:12px;padding:16px 20px;">
-              <p style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:#0066FF;">💡 Tips sebelum berangkat</p>
-              <ul style="margin:0;padding:0 0 0 16px;font-size:12px;color:#5A6580;line-height:1.8;">
-                <li>Cek kembali tiket email kamu dan siapkan QR Code</li>
-                <li>Datang 15 menit lebih awal untuk proses check-in</li>
-                <li>Tunjukkan QR code atau kode cadangan ke panitia</li>
-              </ul>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding:24px 0 0 0;border-top:1px solid #E0E8FF;text-align:center;">
-              <p style="margin:0 0 4px 0;font-size:14px;font-weight:700;color:#0066FF;">⚡ bdForms</p>
-              <p style="margin:0;font-size:11px;color:#5A6580;">Fast-Track Event Registration Platform · bdforms.id</p>
-              <p style="margin:8px 0 0 0;font-size:11px;color:#C8D4F0;">© 2026 bdForms. Hak cipta dilindungi.</p>
+            <td style="padding: 32px 0 0 0; border-top: 1px solid #1e2a2c; text-align: center;">
+              <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 14px; font-weight: bold; color: #5bffa1;">&#11041; bdForms</p>
+              <p style="margin: 0 0 8px 0; font-family: ${fontFamily}; font-size: 12px; line-height: 1.5; color: #8a9299;">Powered by bdForms &mdash; Fast-Track Event Registration</p>
+              <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 12px; line-height: 1.5;">
+                <a href="https://bdforms.id" style="color: #5bffa1; text-decoration: none;">bdforms.id</a>
+              </p>
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 11px; line-height: 1.5; color: #8a9299;">&copy; 2026 bdForms. Built for speed.</p>
             </td>
           </tr>
 
@@ -300,7 +389,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ── 5. Build and send the email via Brevo ────────────────────────────────
-  const htmlContent = buildReminderEmailHtml(participantName, eventName, eventDate);
+  const htmlContent = buildReminderEmailHtml(participantName, eventName, eventDate, payload.qrToken);
 
   const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -312,7 +401,7 @@ export async function POST(request: NextRequest) {
     body: JSON.stringify({
       sender: { name: senderName, email: senderEmail },
       to: [{ email, name: participantName }],
-      subject: `🔔 Pengingat: ${eventName} berlangsung hari ini! — bdForms`,
+      subject: `🚀 Hari Ini Harinya! ${eventName} — bdForms`,
       htmlContent,
     }),
   });
