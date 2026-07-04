@@ -32,7 +32,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="flex items-center justify-center rounded-full border transition-colors hover:bg-[var(--surface-container)]"
+      className="flex items-center justify-center rounded-full border transition-colors hover:bg-(--surface-container)"
       style={{
         width: 36,
         height: 36,
