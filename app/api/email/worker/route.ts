@@ -349,16 +349,19 @@ function buildReminderEmailHtml(
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  // ── 1. Clone the request before consuming body (needed for signature verify)
-  // QStash signature is over the raw body, so we read it once as text.
+  // ── 1. Read raw body once — required for signature verification
+  // QStash computes its HMAC signature over the raw body bytes.
   const rawBody = await request.text();
 
-  // ── 2. Verify the QStash signature ───────────────────────────────────────
-  // We need to re-create a Request-like object that has the raw body for
-  // verification purposes. We pass the original request headers.
+  // ── 2. Verify the QStash HMAC signature ──────────────────────────────────
   const isValid = await verifyQStashSignature(request);
   if (!isValid) {
-    return new Response("Unauthorized: invalid QStash signature", { status: 401 });
+    // Return 401 — QStash will retry; a spoofed request should never pass.
+    console.error("[email/worker] ❌ Signature verification failed — rejecting request.");
+    return NextResponse.json(
+      { success: false, error: "Unauthorized: invalid QStash signature" },
+      { status: 401 },
+    );
   }
 
   // ── 3. Parse the payload ─────────────────────────────────────────────────
@@ -366,15 +369,23 @@ export async function POST(request: NextRequest) {
   try {
     payload = JSON.parse(rawBody) as ReminderPayload;
   } catch {
-    console.error("[email/worker] Failed to parse JSON payload:", rawBody);
-    return new Response("Bad Request: invalid JSON", { status: 400 });
+    console.error("[email/worker] ❌ Failed to parse JSON payload:", rawBody.slice(0, 200));
+    // 200 + success:false → QStash drops the job (bad payload can never succeed).
+    return NextResponse.json(
+      { success: false, error: "Bad Request: invalid JSON" },
+      { status: 200 },
+    );
   }
 
   const { participantId, participantName, email, eventName, eventDate } = payload;
 
   if (!participantId || !participantName || !email || !eventName || !eventDate) {
-    console.error("[email/worker] Missing required fields in payload:", payload);
-    return new Response("Bad Request: missing required fields", { status: 400 });
+    console.error("[email/worker] ❌ Missing required fields in payload:", JSON.stringify(payload));
+    // 200 + success:false → QStash drops the job (structurally invalid, retrying won't help).
+    return NextResponse.json(
+      { success: false, error: "Bad Request: missing required fields" },
+      { status: 200 },
+    );
   }
 
   // ── 4. Check for env vars early ──────────────────────────────────────────
@@ -383,9 +394,12 @@ export async function POST(request: NextRequest) {
   const senderName = process.env.BREVO_SENDER_NAME ?? "bdForms";
 
   if (!brevoApiKey || !senderEmail) {
-    console.error("[email/worker] Brevo credentials not configured");
-    // Return 500 — QStash will retry.
-    return new Response("Internal Server Error: email service not configured", { status: 500 });
+    console.error("[email/worker] ❌ Brevo credentials not configured — check BREVO_API_KEY and BREVO_SENDER_EMAIL env vars.");
+    // Return 500 — QStash will retry (env vars may be temporarily missing during deploy).
+    return NextResponse.json(
+      { success: false, error: "Internal Server Error: email service not configured" },
+      { status: 500 },
+    );
   }
 
   // ── 5. Build and send the email via Brevo ────────────────────────────────
@@ -409,12 +423,13 @@ export async function POST(request: NextRequest) {
   if (!brevoRes.ok) {
     const errBody = await brevoRes.text();
     console.error(
-      `[email/worker] Brevo error for ${participantId}:`,
-      brevoRes.status,
-      errBody,
+      `[email/worker] ❌ Brevo API error for participant ${participantId}: HTTP ${brevoRes.status} — ${errBody}`,
     );
-    // Non-2xx → QStash will retry.
-    return new Response(`Brevo API error: ${brevoRes.status}`, { status: 500 });
+    // Return 500 — QStash will retry (transient Brevo errors may succeed on next attempt).
+    return NextResponse.json(
+      { success: false, error: `Brevo API error: ${brevoRes.status}`, detail: errBody },
+      { status: 500 },
+    );
   }
 
   // ── 6. Mark reminder as sent in Supabase ─────────────────────────────────
@@ -443,8 +458,8 @@ export async function POST(request: NextRequest) {
   }
 
   console.log(
-    `[email/worker] ✅ Reminder sent to ${email} (participant: ${participantId}, event: ${eventName})`,
+    `[email/worker] ✅ Reminder sent → email=${email} participantId=${participantId} event="${eventName}"`,
   );
 
-  return NextResponse.json({ ok: true, participantId, email });
+  return NextResponse.json({ success: true, participantId, email });
 }
