@@ -8,7 +8,10 @@ const getStoredTheme = (): "light" | "dark" => {
 };
 
 export default function ThemeToggle() {
+  const [mounted, setMounted] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(getStoredTheme);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (theme === "dark") {
@@ -28,6 +31,17 @@ export default function ThemeToggle() {
       delete document.documentElement.dataset.theme;
     }
   };
+
+  if (!mounted) {
+    return (
+      <button
+        disabled
+        aria-hidden="true"
+        style={{ width: 36, height: 36 }}
+        className="rounded-full border"
+      />
+    );
+  }
 
   return (
     <button
