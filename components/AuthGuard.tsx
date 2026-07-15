@@ -1,30 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
-// Known limitation: auth check is client-side only (runs in useEffect after first render).
-// Users see a loading spinner, not content, but the gap exists. Future improvement:
-// add server-side protection via Next.js middleware (middleware.ts) to redirect
-// unauthenticated requests before any HTML is sent.
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [authed, setAuthed] = useState(false);
+  const { session, loading } = useAuth();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.push("/auth/login");
-      } else {
-        setAuthed(true);
-      }
-      setChecking(false);
-    });
-  }, [router]);
+    if (!loading && !session) {
+      router.push("/auth/login");
+    }
+  }, [loading, session, router]);
 
-  if (checking) {
+  if (loading) {
     return (
       <div className="bd flex min-h-screen items-center justify-center">
         <span
@@ -37,6 +27,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!authed) return null;
+  if (!session) return null;
   return <>{children}</>;
 }

@@ -34,15 +34,22 @@ export default function LoginClient() {
     try {
       const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (authError) {
+        console.error("Login submission error:", authError);
         const msg = authError.message.toLowerCase();
-        if (msg.includes("invalid") || msg.includes("credentials")) setError("Email atau password salah.");
-        else if (msg.includes("not confirmed") || msg.includes("not verified")) setError("Email belum diverifikasi. Cek inbox kamu.");
-        else setError(authError.message);
+        if (msg.includes("invalid") || msg.includes("credentials")) {
+          setError("Email atau password salah.");
+        } else if (msg.includes("not confirmed") || msg.includes("not verified")) {
+          setError("Email belum diverifikasi. Cek inbox kamu.");
+        } else {
+          setError(authError.message);
+        }
         setLoading(false);
         return;
       }
+      router.refresh();
       router.push("/dashboard");
-    } catch {
+    } catch (err) {
+      console.error("Unexpected error during login:", err);
       setError("Terjadi kesalahan koneksi. Coba lagi.");
       setLoading(false);
     }
@@ -60,12 +67,12 @@ export default function LoginClient() {
         {successMessage && <p className="mb-4 text-center text-sm" style={{ color: "var(--success)" }}>{successMessage}</p>}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }} placeholder="Email" className={`bd-input w-full rounded-lg px-4 py-3${fieldErrors.email ? " !border-[var(--error)]" : ""}`} />
+            <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }} placeholder="Email" className={`bd-input w-full rounded-lg px-4 py-3${fieldErrors.email ? " border-(--error)!" : ""}`} />
             {fieldErrors.email && <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors.email}</p>}
           </div>
           <div>
             <div className="relative">
-              <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }} placeholder="Password" className={`bd-input w-full rounded-lg px-4 py-3 pr-12${fieldErrors.password ? " !border-[var(--error)]" : ""}`} />
+              <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => { setPassword(e.target.value); setFieldErrors((p) => ({ ...p, password: undefined })); }} placeholder="Password" className={`bd-input w-full rounded-lg px-4 py-3 pr-12${fieldErrors.password ? " border-(--error)!" : ""}`} />
               <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute top-1/2 right-3 -translate-y-1/2" aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}><span className="material-symbols-outlined text-xl" style={{ color: "var(--on-surface-variant)" }}>{showPassword ? "visibility_off" : "visibility"}</span></button>
             </div>
             {fieldErrors.password && <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors.password}</p>}

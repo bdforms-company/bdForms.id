@@ -44,6 +44,8 @@ export default function RegisterClient() {
   const [emailRequired, setEmailRequired] = useState(false);
   const [eventNotFound, setEventNotFound] = useState(false);
   const [pendingPayment, setPendingPayment] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [hasDownloadedQR, setHasDownloadedQR] = useState(false);
   const emailSentRef = useRef(false);
   const autoDownloadedRef = useRef(false);
 
@@ -186,6 +188,17 @@ export default function RegisterClient() {
     link.click();
   };
 
+  const downloadModalQR = () => {
+    const canvas = document.querySelector("#modal-qr-container canvas") as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = "tiket-bdforms.png";
+    link.click();
+    setHasDownloadedQR(true);
+  };
+
   useEffect(() => {
     if (!result || autoDownloadedRef.current) return;
     autoDownloadedRef.current = true;
@@ -267,6 +280,7 @@ export default function RegisterClient() {
       }
 
       setResult(participant);
+      setModalOpen(true);
     } catch (e) {
       console.error("Register error:", e);
       const msg =
@@ -329,7 +343,7 @@ export default function RegisterClient() {
   if (registrationClosed) {
     return (
       <div className="bd flex min-h-screen flex-col">
-        <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
+        <main className="flex grow flex-col items-center justify-center px-4 pt-8 pb-16">
           {bannerUrl && (
             <div className="relative mb-6 aspect-video w-full max-w-md overflow-hidden rounded-2xl">
               <Image src={bannerUrl} alt="Banner event" fill className="object-cover" loading="eager" />
@@ -350,7 +364,7 @@ export default function RegisterClient() {
   if (full) {
     return (
       <div className="bd flex min-h-screen flex-col">
-        <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
+        <main className="flex grow flex-col items-center justify-center px-4 pt-8 pb-16">
           {bannerUrl && (
             <div className="relative mb-6 aspect-video w-full max-w-md overflow-hidden rounded-2xl">
               <Image src={bannerUrl} alt="Banner event" fill className="object-cover" loading="eager" />
@@ -372,6 +386,49 @@ export default function RegisterClient() {
 
   return (
     <div className="bd flex min-h-screen flex-col">
+      {modalOpen && result && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+          <div className="glass w-full max-w-md rounded-3xl p-8 text-center border" style={{ borderColor: "rgba(255, 255, 255, 0.15)" }}>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10">
+              <span className="material-symbols-outlined text-4xl text-blue-500">qr_code_2</span>
+            </div>
+            <h2 className="mb-2 text-2xl font-bold text-white">Tiket QR Anda Sudah Siap!</h2>
+            <p className="mb-6 text-sm text-gray-300">
+              Silakan unduh tiket QR di bawah ini sekarang. Anda **wajib** menyimpannya di galeri HP untuk ditunjukkan saat check-in di lokasi acara (D-Day).
+            </p>
+
+            {/* QR Code Container */}
+            <div className="mx-auto mb-6 inline-block bg-white p-4 rounded-2xl shadow-lg" id="modal-qr-container">
+              <QRCodeCanvas value={result.qr_token} size={220} />
+            </div>
+
+            <p className="mb-2 text-lg font-bold text-white">{result.name}</p>
+            <p className="mb-6 text-xs text-gray-400 font-mono tracking-wider">
+              TOKEN: {result.qr_token.slice(-6).toUpperCase()}
+            </p>
+
+            {/* Action Button */}
+            <button
+              onClick={downloadModalQR}
+              className="w-full rounded-xl py-4 font-bold transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+              style={{ background: "var(--primary)", color: "var(--on-primary)" }}
+            >
+              <span className="material-symbols-outlined">download</span>
+              Download Tiket QR
+            </button>
+
+            {/* Exit button, only visible after downloading */}
+            {hasDownloadedQR && (
+              <button
+                onClick={() => setModalOpen(false)}
+                className="w-full mt-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Tutup & Lihat Ringkasan
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes slideUpBar {
           from { transform: translateY(100%); }
@@ -382,7 +439,7 @@ export default function RegisterClient() {
           100% { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
         }
       `}</style>
-      <main className="flex flex-grow flex-col items-center justify-center px-4 pt-8 pb-16">
+      <main className="flex grow flex-col items-center justify-center px-4 pt-8 pb-16">
         {result ? (
           <div className="glass w-full max-w-md rounded-2xl p-8 text-center" style={{ paddingBottom: whatsappGroupUrl ? 90 : undefined }}>
             <h1 className="mb-6 text-2xl font-bold gradient-text">Pendaftaran Berhasil</h1>

@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { supabase, EVENT_ID } from "@/lib/supabase";
 import type { Participant, ScanResult } from "@/lib/types";
 
@@ -20,95 +22,138 @@ interface ScannerStore {
   reset: () => void; // balik ke viewfinder (tap-to-reset)
 }
 
-export const useScannerStore = create<ScannerStore>((set, get) => ({
-  participants: {},
-  syncQueue: [],
-  cameraError: false,
-  isReady: false,
-  totalCount: 0,
-  lastScanned: null,
+interface PersistedScannerState {
+  participants: Record<string, Participant>;
+  syncQueue: string[];
+}
 
-  // INIT (Online): SELECT * FROM participants -> map by qr_token
-  fetchInitialData: async (eventId = EVENT_ID) => {
-    const { data, error } = await supabase
-      .from("participants")
-      .select("*")
-      .eq("event_id", eventId);
-
-    if (error) throw error;
-
-    const map: Record<string, Participant> = {};
-    (data ?? []).forEach((p) => {
-      map[p.qr_token] = p as Participant;
-    });
-
-    set({ participants: map, totalCount: data?.length ?? 0, isReady: true });
+// Custom storage engine wrapper using idb-keyval (IndexedDB)
+const idbStorage = createJSONStorage<PersistedScannerState>(() => ({
+  getItem: async (name: string): Promise<string | null> => {
+    const value = await idbGet<string>(name);
+    return value ?? null;
   },
-
-  // FR-5 / FR-6: lookup lokal O(1), evaluasi state
-  validateScan: (qrToken) => {
-    const p = get().participants[qrToken];
-    if (!p) return "NOT_FOUND";
-    return p.is_checked_in ? "DUPLICATE" : "VERIFIED";
+  setItem: async (name: string, value: string): Promise<void> => {
+    await idbSet(name, value);
   },
-
-  // Update state lokal jadi true + masuk antrean sync. NO live fetch.
-  processCheckIn: (qrToken) => {
-    const p = get().participants[qrToken];
-    if (!p || p.is_checked_in) {
-      set({ lastScanned: p ?? null });
-      return p ?? null;
-    }
-
-    const updated: Participant = {
-      ...p,
-      is_checked_in: true,
-      check_in_time: new Date().toISOString(),
-    };
-
-    set((s) => ({
-      participants: { ...s.participants, [qrToken]: updated },
-      syncQueue: s.syncQueue.includes(qrToken)
-        ? s.syncQueue
-        : [...s.syncQueue, qrToken],
-      lastScanned: updated,
-    }));
-
-    // fire-and-forget; aman walau offline (di-catch di dalam)
-    void get().syncToServer();
-    return updated;
+  removeItem: async (name: string): Promise<void> => {
+    await idbDel(name);
   },
-
-  // Background sync: UPDATE semua token di antrean. Offline-resilient (NFR-2).
-  syncToServer: async () => {
-    const { syncQueue, participants } = get();
-    if (syncQueue.length === 0) return;
-
-    const pending = [...syncQueue];
-    const failed: string[] = [];
-
-    await Promise.all(
-      pending.map(async (token) => {
-        const p = participants[token];
-        if (!p) return;
-        const { error } = await supabase
-          .from("participants")
-          .update({
-            is_checked_in: true,
-            check_in_time: p.check_in_time,
-          })
-          .eq("qr_token", token);
-        if (error) failed.push(token); // gagal (offline) -> tetep di antrean
-      })
-    ).catch(() => {
-      // network mati total: semua tetep antre
-      failed.push(...pending.filter((t) => !failed.includes(t)));
-    });
-
-    set({ syncQueue: failed });
-  },
-
-  setCameraError: (status) => set({ cameraError: status }),
-
-  reset: () => set({ lastScanned: null }),
 }));
+
+export const useScannerStore = create<ScannerStore>()(
+  persist(
+    (set, get) => ({
+      participants: {},
+      syncQueue: [],
+      cameraError: false,
+      isReady: false,
+      totalCount: 0,
+      lastScanned: null,
+
+      // INIT (Online): SELECT * FROM participants -> map by qr_token
+      fetchInitialData: async (eventId = EVENT_ID) => {
+        const { data, error } = await supabase
+          .from("participants")
+          .select("*")
+          .eq("event_id", eventId);
+
+        if (error) throw error;
+
+        const map: Record<string, Participant> = {};
+        (data ?? []).forEach((p) => {
+          map[p.qr_token] = p as Participant;
+        });
+
+        set({ participants: map, totalCount: data?.length ?? 0, isReady: true });
+      },
+
+      // FR-5 / FR-6: lookup lokal O(1), evaluasi state
+      validateScan: (qrToken) => {
+        const p = get().participants[qrToken];
+        if (!p) return "NOT_FOUND";
+        return p.is_checked_in ? "DUPLICATE" : "VERIFIED";
+      },
+
+      // Update state lokal jadi true + masuk antrean sync. NO live fetch.
+      processCheckIn: (qrToken) => {
+        const p = get().participants[qrToken];
+        if (!p || p.is_checked_in) {
+          set({ lastScanned: p ?? null });
+          return p ?? null;
+        }
+
+        const updated: Participant = {
+          ...p,
+          is_checked_in: true,
+          check_in_time: new Date().toISOString(),
+        };
+
+        set((s) => ({
+          participants: { ...s.participants, [qrToken]: updated },
+          syncQueue: s.syncQueue.includes(qrToken)
+            ? s.syncQueue
+            : [...s.syncQueue, qrToken],
+          lastScanned: updated,
+        }));
+
+        // fire-and-forget; aman walau offline (di-catch di dalam)
+        void get().syncToServer();
+        return updated;
+      },
+
+      // Background sync: UPDATE semua token di antrean. Offline-resilient (NFR-2).
+      // Refactored to guarantee idempotency and concurrency safety.
+      syncToServer: async () => {
+        const { syncQueue } = get();
+        if (syncQueue.length === 0) return;
+
+        // Deduplicate key values in the queue
+        const pending = Array.from(new Set(syncQueue));
+
+        // Optimistically clear these processed tokens from the queue
+        // preventing concurrent calls from double-processing them
+        set((s) => ({
+          syncQueue: s.syncQueue.filter((t) => !pending.includes(t)),
+        }));
+
+        try {
+          const { error } = await supabase.rpc("batch_check_in", { tokens: pending });
+          if (error) {
+            console.error("Batch check-in RPC failed:", error);
+            set((s) => ({
+              syncQueue: Array.from(new Set([...s.syncQueue, ...pending])),
+            }));
+          }
+        } catch (err) {
+          console.error("Batch check-in RPC exception:", err);
+          set((s) => ({
+            syncQueue: Array.from(new Set([...s.syncQueue, ...pending])),
+          }));
+        }
+      },
+
+      setCameraError: (status) => set({ cameraError: status }),
+
+      reset: () => set({ lastScanned: null }),
+    }),
+    {
+      name: "scanner-store",
+      storage: idbStorage,
+      partialize: (state) => ({
+        participants: state.participants,
+        syncQueue: state.syncQueue,
+      }),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (!error && state) {
+            // Trigger automatic sync for lingering items in syncQueue upon rehydration
+            if (state.syncQueue.length > 0) {
+              void state.syncToServer();
+            }
+          }
+        };
+      },
+    }
+  )
+);

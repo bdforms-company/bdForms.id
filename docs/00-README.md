@@ -14,6 +14,8 @@ Welcome to the internal technical documentation of **bdForms** (Fast-Track Regis
   Zustand store-based offline-first architecture, `html5-qrcode` integration, conflict validation, queue retry strategy, and sub-3-second check-in mechanism.
 - **[04-integrations.md](file:///home/nblauliadka/02_Competence/Today/bdForms.id/docs/04-integrations.md)**
   Third-party mail integrations (Resend & Brevo), Sentry error monitoring pipeline, and Canvas-based Digital Signature capture.
+- **[05-changelog.md](file:///home/nblauliadka/02_Competence/Today/bdForms.id/docs/05-changelog.md)**
+  Changelog documenting platform changes, feature updates, security patches, and structural modifications.
 
 ---
 

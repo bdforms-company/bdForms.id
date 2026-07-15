@@ -13,10 +13,28 @@ export async function createSupabaseServerClient() {
           return cookieStore.get(name)?.value;
         },
         set(name, value, options) {
-          cookieStore.set({ name, value, ...options });
+          cookieStore.set({
+            name,
+            value,
+            ...options,
+            httpOnly: true,
+            maxAge: 31536000, // 1 year
+            path: "/",
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "development" ? false : true,
+          });
         },
         remove(name, options) {
-          cookieStore.set({ name, value: "", ...options });
+          cookieStore.set({
+            name,
+            value: "",
+            ...options,
+            httpOnly: true,
+            maxAge: 0,
+            path: "/",
+            sameSite: "lax",
+            secure: process.env.NODE_ENV === "development" ? false : true,
+          });
         },
       },
     },

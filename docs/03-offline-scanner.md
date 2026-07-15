@@ -4,16 +4,21 @@ This document covers the technical implementation of the offline-first QR scanni
 
 ---
 
-## 🏗️ State Design: `useScannerStore`
+## 🏗️ State Design & Persistence: `useScannerStore`
 
-The client-side scanner logic is built using a Zustand memory store in `store/useScannerStore.ts`. This store acts as a local proxy for the Supabase `participants` database, providing instant lookups and buffering writes when connections fail.
+The client-side scanner logic utilizes a Zustand store in `store/useScannerStore.ts` backed by **IndexedDB** via the `idb-keyval` storage library. This architecture guarantees that cached lookups and pending check-ins survive browser closures, app restarts, or device power failures during offline execution.
+
+### Persistence Strategy (IndexedDB)
+1. **Target States:** Only the `participants` lookup map and the `syncQueue` array are persisted to IndexedDB using Zustand's `persist` middleware.
+2. **Selective State Partitioning (`partialize`):** Ephemeral UI and camera states (such as `isReady`, `cameraError`, and `lastScanned`) are excluded from storage and reset on reload.
+3. **Disaster Recovery Rehydration (`onRehydrateStorage`):** When the application reloads, the store automatically fetches the cached states from IndexedDB. If any check-ins remain in the `syncQueue` (meaning the device went offline and closed), the store triggers a background `syncToServer()` run immediately upon successful rehydration.
 
 ### Store Interface Structure
 ```typescript
 interface ScannerStore {
   // State
-  participants: Record<string, Participant>; // Key = qr_token -> lookups in O(1)
-  syncQueue: string[];                        // Array of qr_tokens pending sync to server
+  participants: Record<string, Participant>; // Key = qr_token -> lookups in O(1) (Persisted)
+  syncQueue: string[];                        // Array of qr_tokens pending sync to server (Persisted)
   cameraError: boolean;                       // Camera access failure flag
   isReady: boolean;                           // Initial database download status
   totalCount: number;                         // Total count tracking indicator
@@ -127,39 +132,63 @@ processCheckIn: (qrToken) => {
 ```
 `syncToServer` is immediately launched as a fire-and-forget background task.
 
-### Step 4: Background Reconciliation (`syncToServer`)
-The store processes queued modifications in parallel, keeping only failed attempts in the queue.
+### Step 4: Background Reconciliation & Idempotency (`syncToServer`)
+
+The store processes queued modifications in parallel, keeping only failed attempts in the queue while preventing duplicate processing or race conditions:
+
 ```typescript
 syncToServer: async () => {
   const { syncQueue, participants } = get();
   if (syncQueue.length === 0) return;
 
-  const pending = [...syncQueue];
+  // Deduplicate key values in the queue
+  const pending = Array.from(new Set(syncQueue));
+
+  // Optimistically clear these processed tokens from the queue
+  // preventing concurrent calls from double-processing them
+  set((s) => ({
+    syncQueue: s.syncQueue.filter((t) => !pending.includes(t)),
+  }));
+
   const failed: string[] = [];
 
   await Promise.all(
     pending.map(async (token) => {
       const p = participants[token];
       if (!p) return;
-      const { error } = await supabase
-        .from("participants")
-        .update({
-          is_checked_in: true,
-          check_in_time: p.check_in_time,
-        })
-        .eq("qr_token", token);
-      if (error) failed.push(token); // failed (offline) -> remains in queue
-    })
-  ).catch(() => {
-    // network fully down: all items stay in queue
-    failed.push(...pending.filter((t) => !failed.includes(t)));
-  });
+      try {
+        const { error } = await supabase
+          .from("participants")
+          .update({
+            is_checked_in: true,
+            check_in_time: p.check_in_time,
+          })
+          .eq("qr_token", token);
 
-  set({ syncQueue: failed });
+        if (error) {
+          console.error(`Sync error for token ${token}:`, error);
+          failed.push(token);
+        }
+      } catch (err) {
+        console.error(`Sync exception for token ${token}:`, err);
+        failed.push(token);
+      }
+    })
+  );
+
+  if (failed.length > 0) {
+    // Re-add failed tokens back to the queue (avoiding duplicates)
+    set((s) => ({
+      syncQueue: Array.from(new Set([...s.syncQueue, ...failed])),
+    }));
+  }
 }
 ```
-*   **Failed Retry Strategy:** If any write requests return error statuses (network failure or timeout), the associated tokens are appended to `failed` and rewritten to `syncQueue`.
-*   **Automatic Retries:** In standard operation, subsequent scans invoke `processCheckIn`, which fires `syncToServer()` again, forcing a re-evaluation of all failed items in the queue.
+
+*   **Idempotency & Deduplication:** If `syncQueue` contains multiple check-in requests for the same token, the queue is deduplicated before execution. The database updates specify exact `check_in_time` values and set `is_checked_in = true`, ensuring that duplicate database requests are fully idempotent.
+*   **Race Condition Mitigation:** By optimistically clearing pending tokens from the queue *before* executing the asynchronous calls, we ensure that subsequent or concurrent calls to `syncToServer()` do not process the same tokens in parallel.
+*   **Failed Retry Strategy:** If any write requests return error statuses (network failure or timeout), the associated tokens are appended to `failed` and rewritten to the `syncQueue`.
+*   **Automatic Retries:** In standard operation, subsequent scans invoke `processCheckIn`, which fires `syncToServer()` again, forcing a re-evaluation of all failed items in the queue. Upon restarting the app, the rehydration process automatically triggers `syncToServer()` to process any lingering items.
 
 ---
 

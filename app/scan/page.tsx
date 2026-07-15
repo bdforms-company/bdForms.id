@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Html5Qrcode } from "html5-qrcode";
 import { supabase } from "@/lib/supabase";
 import { useScannerStore } from "@/store/useScannerStore";
+import type { Participant } from "@/lib/types";
 import { Switch } from "@/components/ui/switch"; // Import the Switch component
 import "../design.css";
 
@@ -62,6 +63,7 @@ export default function ScanPage() {
   const [eventId, setEventId] = useState<string | null | undefined>(getInitialEventId);
   const [ui, setUi] = useState<UiState>(getInitialUi);
   const [manual, setManual] = useState("");
+  const [standby, setStandby] = useState(false);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
   const [eventName, setEventName] = useState("");
   const [eventDateLabel, setEventDateLabel] = useState("");
@@ -304,6 +306,12 @@ export default function ScanPage() {
     handleTokenRef.current = handleToken;
   }, [handleToken]);
 
+  // Keep standby in a ref to avoid restarting scanner when standby toggles
+  const standbyRef = useRef(standby);
+  useEffect(() => {
+    standbyRef.current = standby;
+  }, [standby]);
+
   useEffect(() => {
     if (ui !== "scanning") {
       // Ensure scanner stops if UI state changes from scanning
@@ -326,7 +334,15 @@ export default function ScanPage() {
         handleTokenRef.current(decoded);
       },
       () => {}
-    ).catch((err) => {
+    ).then(() => {
+      if (standbyRef.current) {
+        try {
+          qr.pause(true);
+        } catch (e) {
+          console.error("Gagal pause kamera pada start:", e);
+        }
+      }
+    }).catch((err) => {
       console.error("Kamera gagal start:", err);
       setCameraError(true);
       setUi("ready");
@@ -336,22 +352,61 @@ export default function ScanPage() {
       scannerRef.current = null;
       if (inst) inst.stop().then(() => inst.clear()).catch(() => {});
     };
-  }, [ui, autoScan]);
+  }, [ui, autoScan, setCameraError]);
+
+  // Handle standby pause/resume controls
+  useEffect(() => {
+    const inst = scannerRef.current;
+    if (!inst || ui !== "scanning") return;
+
+    if (standby) {
+      try {
+        inst.pause(true);
+      } catch (err) {
+        console.error("Gagal pause kamera:", err);
+      }
+    } else {
+      try {
+        inst.resume();
+      } catch (err) {
+        console.error("Gagal resume kamera:", err);
+      }
+    }
+  }, [standby, ui]);
 
   const submitManual = () => {
-    const code = manual.trim().toLowerCase();
-    if (!code) return;
-    const full = Object.keys(participants).find((t) => t.toLowerCase().endsWith(code));
-    if (!full) {
+    const query = manual.trim();
+    if (!query) return;
+
+    // 1. Direct constant-time O(1) lookup by exact qr_token
+    let p: Participant | undefined = participants[query];
+
+    // 2. Fallback name search (case-insensitive)
+    if (!p) {
+      const queryLower = query.toLowerCase();
+      p = Object.values(participants).find(
+        (x) => x.name.toLowerCase() === queryLower
+      );
+    }
+
+    if (!p) {
       setUi("notfound");
       return;
     }
-    handleToken(full);
+
+    // Execute processCheckIn directly
+    processCheckIn(p.qr_token);
+    if (p.is_checked_in) {
+      setUi("duplicate");
+    } else {
+      setUi("verified");
+    }
   };
 
   const backToReady = () => {
     reset();
     setManual("");
+    setStandby(false);
     setVerifiedCount(0);
     setDuplicateCount(0);
     setNotFoundCount(0);
@@ -441,13 +496,52 @@ export default function ScanPage() {
             className="w-full max-w-lg overflow-hidden rounded-2xl border-8 border-transparent relative"
             style={{ animation: (cooldown > 0 && ui === "scanning") ? `flash-cooldown ${cooldown * 1000}ms linear forwards` : 'none' }}
           >
+            {standby && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center z-20 gap-3" style={{ backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.6)' }}>
+                <span className="material-symbols-outlined text-5xl text-yellow-400 animate-pulse">hourglass_empty</span>
+                <p className="text-lg font-bold text-white">Kamera Ditangguhkan</p>
+                <p className="text-xs max-w-xs text-gray-300">Standby mode aktif untuk menghemat baterai & mencegah overheat.</p>
+              </div>
+            )}
             {cooldown > 0 && (
               <div className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold z-10" style={{ backdropFilter: 'blur(2px)', background: 'rgba(0,0,0,0.3)' }}>
                 {Math.ceil(cooldown)}
               </div>
             )}
           </div>
-          <button onClick={backToReady} className="rounded-lg border px-6 py-2" style={{ borderColor: "var(--outline-variant)" }}>✕ Keluar Auto-Scan</button>
+
+          {/* Standby & Manual Controls */}
+          <div className="w-full max-w-lg flex flex-col gap-4 mt-2">
+            <button
+              onClick={() => setStandby(!standby)}
+              className="w-full rounded-xl py-3 font-bold flex items-center justify-center gap-2 transition active:scale-95"
+              style={{
+                background: standby ? "var(--primary)" : "var(--surface-container-high)",
+                color: standby ? "var(--on-primary)" : "white",
+              }}
+            >
+              <span className="material-symbols-outlined">{standby ? "play_arrow" : "pause"}</span>
+              {standby ? "Resume Kamera" : "Standby Mode (Pause)"}
+            </button>
+
+            <div className="flex gap-2">
+              <input
+                value={manual}
+                onChange={(e) => setManual(e.target.value)}
+                placeholder="Ketik nama atau token QR..."
+                className="bd-input flex-1 rounded-lg p-3 text-center font-mono"
+              />
+              <button
+                onClick={submitManual}
+                className="rounded-lg px-5 font-bold"
+                style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}
+              >
+                Check-in
+              </button>
+            </div>
+          </div>
+
+          <button onClick={backToReady} className="rounded-lg border px-6 py-2 mt-4" style={{ borderColor: "var(--outline-variant)" }}>✕ Keluar Auto-Scan</button>
 
           {/* Active Toast Notification */}
           {activeToast && (
@@ -495,8 +589,48 @@ export default function ScanPage() {
       return (
         <div className="bd flex min-h-screen flex-col items-center gap-4 px-4 pt-10">
           <h1 className="text-xl font-bold">Arahkan kamera ke QR</h1>
-          <div id="qr-reader" className="glass w-full max-w-lg overflow-hidden rounded-2xl" />
-          <button onClick={backToReady} className="rounded-lg border px-6 py-2" style={{ borderColor: "var(--outline-variant)" }}>Batal</button>
+          <div id="qr-reader" className="glass w-full max-w-lg overflow-hidden rounded-2xl relative">
+            {standby && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center z-20 gap-3" style={{ backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.6)' }}>
+                <span className="material-symbols-outlined text-5xl text-yellow-400 animate-pulse">hourglass_empty</span>
+                <p className="text-lg font-bold text-white">Kamera Ditangguhkan</p>
+                <p className="text-xs max-w-xs text-gray-300">Standby mode aktif untuk menghemat baterai & mencegah overheat.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Standby & Manual Controls */}
+          <div className="w-full max-w-lg flex flex-col gap-4 mt-2">
+            <button
+              onClick={() => setStandby(!standby)}
+              className="w-full rounded-xl py-3 font-bold flex items-center justify-center gap-2 transition active:scale-95"
+              style={{
+                background: standby ? "var(--primary)" : "var(--surface-container-high)",
+                color: standby ? "var(--on-primary)" : "white",
+              }}
+            >
+              <span className="material-symbols-outlined">{standby ? "play_arrow" : "pause"}</span>
+              {standby ? "Resume Kamera" : "Standby Mode (Pause)"}
+            </button>
+
+            <div className="flex gap-2">
+              <input
+                value={manual}
+                onChange={(e) => setManual(e.target.value)}
+                placeholder="Ketik nama atau token QR..."
+                className="bd-input flex-1 rounded-lg p-3 text-center font-mono"
+              />
+              <button
+                onClick={submitManual}
+                className="rounded-lg px-5 font-bold"
+                style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}
+              >
+                Check-in
+              </button>
+            </div>
+          </div>
+
+          <button onClick={backToReady} className="rounded-lg border px-6 py-2 mt-4" style={{ borderColor: "var(--outline-variant)" }}>Batal</button>
         </div>
       );
     }

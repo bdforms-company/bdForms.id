@@ -120,3 +120,19 @@ bdForms/
 3. **Local Check-In:** If verified, `processCheckIn(qrToken)` immediately marks the participant `is_checked_in = true` and updates `check_in_time` locally. This ensures zero delay for the operator.
 4. **Queue Processing:** The participant's `qr_token` is appended to the Zustand `syncQueue` array. `syncToServer()` is invoked in a fire-and-forget fashion.
 5. **Server Reconciliation:** `syncToServer` iterates over queued items, executing Supabase updates. Successful synchronizations are removed from `syncQueue`. Failed requests (e.g., due to local signal drop) remain in the queue and retry on subsequent scans.
+
+### 4. Persistent Login & XSS Mitigation Flow
+
+To protect organizer accounts and prevent session theft through Cross-Site Scripting (XSS), the authentication strategy is built on secure, server-managed state:
+
+1. **HTTP-Only Session Cookies:**
+   - On the server, `createSupabaseServerClient` and the Next.js `middleware.ts` configure authentication cookies with `httpOnly: true`, `secure: true`, `sameSite: "lax"`, and a lifespan of 1 year (`maxAge: 31536000`).
+   - This prevents browser-side scripts from reading, modifying, or exporting the session JWTs, securing them against XSS.
+2. **In-Memory Browser Client:**
+   - The browser-side Supabase client (`lib/supabase.ts`) is initialized with `auth.persistSession = false`, completely preventing write operations to `localStorage` or `sessionStorage`.
+3. **Session Rehydration & Hooks:**
+   - On application load, the custom `useAuth` hook triggers a secure server request to `/api/auth/session` which reads the `httpOnly` session cookies.
+   - If an active session is returned, the hook updates the browser client memory via `supabase.auth.setSession(...)`.
+   - Subsequent client-side database reads/writes fetch the session directly from memory without writing to disk.
+4. **Invalidation & Sign Out:**
+   - When an organizer logs out, the client triggers a POST request to `/api/auth/signout`. The server-side client performs the sign-out operation, instructing the browser to immediately clear all authentication cookies (setting `maxAge: 0` and clearing values).

@@ -178,6 +178,11 @@ function DashboardContent() {
   }, []);
 
   const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+    } catch (err) {
+      console.error("Server-side signout failed:", err);
+    }
     await supabase.auth.signOut();
     router.push("/");
   };
@@ -223,7 +228,7 @@ function DashboardContent() {
               <Link href="/create/package" className="flex-1 rounded-xl px-4 py-2 text-center text-sm font-bold shadow-sm transition hover:-translate-y-0.5 sm:flex-none sm:px-5 sm:py-2.5" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Buat Event Baru</Link>
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                 <div className="relative" ref={notifRef}>
-                  <button onClick={() => setNotifOpen((v) => !v)} className="relative flex h-8 w-8 items-center justify-center rounded-full border transition hover:bg-[var(--surface-container)] sm:h-10 sm:w-10" style={{ borderColor: "var(--outline-variant)" }} aria-label="Notifikasi">
+                  <button onClick={() => setNotifOpen((v) => !v)} className="relative flex h-8 w-8 items-center justify-center rounded-full border transition hover:bg-[--surface-container] sm:h-10 sm:w-10" style={{ borderColor: "var(--outline-variant)" }} aria-label="Notifikasi">
                     <span className="material-symbols-outlined">notifications</span>
                     {unreadCount > 0 && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5" />}
                   </button>
@@ -238,7 +243,7 @@ function DashboardContent() {
                       ) : notifications.map((n) => {
                         const color = { success: "var(--success)", warning: "var(--warning)", info: "var(--primary)", error: "var(--error)" }[n.type];
                         return (
-                          <button key={n.id} onClick={() => n.eventId && router.push(`/dashboard/events/${n.eventId}`)} className="flex w-full gap-3 rounded-xl p-3 text-left transition hover:bg-[var(--surface-container)]">
+                          <button key={n.id} onClick={() => n.eventId && router.push(`/dashboard/events/${n.eventId}`)} className="flex w-full gap-3 rounded-xl p-3 text-left transition hover:bg-[--surface-container]">
                             <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
                             <span className="min-w-0">
                               <span className="block text-sm font-bold">{n.title}</span>
@@ -266,8 +271,8 @@ function DashboardContent() {
                         <p className="text-sm font-bold">{profileFullName || profileUsername || email}</p>
                         <p className="text-xs" style={{ color: "var(--on-surface-variant)" }}>{email}</p>
                       </div>
-                      <Link href="/profile" className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[var(--surface-container)]">⚙️ Pengaturan</Link>
-                      <button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[var(--surface-container)]">🚪 Keluar</button>
+                      <Link href="/profile" className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[--surface-container]">⚙️ Pengaturan</Link>
+                      <button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[--surface-container]">🚪 Keluar</button>
                     </div>
                   )}
                 </div>

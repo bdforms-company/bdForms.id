@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import "../../design.css";
 
@@ -11,6 +12,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type FieldErrors = { namaLengkap?: string; email?: string; password?: string; confirmPassword?: string };
 
 export default function SignupClient() {
+  const router = useRouter();
   const [namaLengkap, setNamaLengkap] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -51,8 +53,15 @@ export default function SignupClient() {
         setLoading(false);
         return;
       }
-      if (data.user) await supabase.from("profiles").insert({ id: data.user.id, full_name: namaLengkap.trim() });
-      setSuccess(true);
+      if (data.user) {
+        await supabase.from("profiles").insert({ id: data.user.id, full_name: namaLengkap.trim() });
+      }
+      if (data.session) {
+        router.refresh();
+        router.push("/dashboard");
+      } else {
+        setSuccess(true);
+      }
     } catch {
       setError("Terjadi kesalahan koneksi. Coba lagi.");
     } finally {
@@ -70,7 +79,7 @@ export default function SignupClient() {
       </Link>
       <div className="glass w-full max-w-md rounded-2xl p-8">
         <h1 className="mb-8 text-center text-2xl font-bold">Buat akun bdForms</h1>
-        {success ? <p className="text-center text-sm" style={{ color: "var(--success)" }}>✅ Cek email kamu untuk verifikasi akun. Setelah verifikasi, kamu bisa masuk.</p> : (
+        {success ? <p className="text-center text-sm" style={{ color: "var(--success)" }}>✅ Silakan cek email Anda untuk verifikasi akun.</p> : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             <div><input type="text" value={namaLengkap} onChange={(e) => { setNamaLengkap(e.target.value); setFieldErrors((p) => ({ ...p, namaLengkap: undefined })); }} placeholder="Nama Lengkap" className={inputClass(fieldErrors.namaLengkap)} />{fieldErrors.namaLengkap && <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors.namaLengkap}</p>}</div>
             <div><input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setFieldErrors((p) => ({ ...p, email: undefined })); }} placeholder="Email" className={inputClass(fieldErrors.email)} />{fieldErrors.email && <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors.email}</p>}</div>
