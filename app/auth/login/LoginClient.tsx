@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import * as Sentry from "@sentry/nextjs";
 import "../../design.css";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -50,6 +51,10 @@ export default function LoginClient() {
       router.push("/dashboard");
     } catch (err) {
       console.error("Unexpected error during login:", err);
+      Sentry.captureException(err, {
+        tags: { action: "login" },
+        extra: { email }
+      });
       setError("Terjadi kesalahan koneksi. Coba lagi.");
       setLoading(false);
     }

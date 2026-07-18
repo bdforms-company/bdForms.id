@@ -58,6 +58,9 @@ export default function ScanPage() {
     processCheckIn,
     setCameraError,
     reset,
+    hydrated,
+    syncQueue,
+    syncError,
   } = useScannerStore();
 
   const [eventId, setEventId] = useState<string | null | undefined>(getInitialEventId);
@@ -251,7 +254,7 @@ export default function ScanPage() {
   }, []);
 
   useEffect(() => {
-    if (eventId === undefined || !eventId) return;
+    if (eventId === undefined || !eventId || !hydrated) return;
     let active = true;
 
     const init = async () => {
@@ -298,7 +301,7 @@ export default function ScanPage() {
     return () => {
       active = false;
     };
-  }, [eventId, fetchInitialData]);
+  }, [eventId, fetchInitialData, hydrated]);
 
   // Keep handleToken in a ref so scanner useEffect doesn't restart when handleToken changes
   const handleTokenRef = useRef(handleToken);
@@ -367,7 +370,9 @@ export default function ScanPage() {
       }
     } else {
       try {
-        inst.resume();
+        if (inst.getState() === 3) {
+          inst.resume();
+        }
       } catch (err) {
         console.error("Gagal resume kamera:", err);
       }
@@ -419,10 +424,15 @@ export default function ScanPage() {
 
   const syncedCount = Object.keys(participants).length;
 
-  if (ui === "loading") {
+  if (!hydrated || ui === "loading") {
     return (
       <div className="bd flex min-h-screen items-center justify-center">
-        <p style={{ color: "var(--on-surface-variant)" }}>Memuat data peserta...</p>
+        <div className="flex flex-col items-center gap-3">
+          <span className="material-symbols-outlined animate-spin text-5xl" style={{ color: "var(--primary)" }}>
+            progress_activity
+          </span>
+          <p style={{ color: "var(--on-surface-variant)" }}>Memuat cache offline...</p>
+        </div>
       </div>
     );
   }
@@ -695,7 +705,20 @@ export default function ScanPage() {
   return (
     <div className="bd flex min-h-screen flex-col px-4 pt-6">
       <div className="mx-auto mb-8 w-full max-w-md rounded-lg py-3 text-center text-sm font-medium" style={{ background: "var(--surface-container)" }}>
-        🟢 Offline Ready ({syncedCount}/{totalCount || syncedCount} Data Synced)
+        {syncQueue.length > 0 ? (
+          <span style={{ color: "var(--warning)" }} className="flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined animate-spin text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>progress_activity</span>
+            Menyinkronkan {syncQueue.length} data ke server...
+          </span>
+        ) : syncError ? (
+          <span style={{ color: "var(--error)" }}>
+            ⚠️ Gagal Sinkron: {syncError} (Mengantre)
+          </span>
+        ) : (
+          <span>
+            🟢 Offline Ready ({syncedCount}/{totalCount || syncedCount} Data Terbaca)
+          </span>
+        )}
       </div>
 
       {/* Auto-scan Mode Toggle */}

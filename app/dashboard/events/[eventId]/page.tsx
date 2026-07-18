@@ -80,6 +80,11 @@ function ManageEventInner() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [updated, setUpdated] = useState<Date | null>(null);
   const [tab, setTab] = useState<Tab>("pendaftar");
+  const [summaryKey, setSummaryKey] = useState<string>("");
+  const [summarySource, setSummarySource] = useState<string>("");
+  const [summaryData, setSummaryData] = useState<{ group_value: string; total_participants: number; checked_in_count: number }[]>([]);
+  const [summaryLoading, setSummaryLoading] = useState<boolean>(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [generatingToken, setGeneratingToken] = useState(false);
@@ -167,6 +172,34 @@ function ManageEventInner() {
   useEffect(() => {
     window.setTimeout(() => { void load(); }, 0);
   }, [load]);
+
+  useEffect(() => {
+    if (!summaryKey || !summarySource || !eventId) {
+      setSummaryData([]);
+      return;
+    }
+    let active = true;
+    const loadSummary = async () => {
+      setSummaryLoading(true);
+      setSummaryError(null);
+      try {
+        const { data, error } = await supabase.rpc("get_event_summary", {
+          p_event_id: eventId,
+          p_group_by_key: summaryKey,
+          p_source_column: summarySource,
+        });
+        if (error) throw error;
+        if (active) setSummaryData(data || []);
+      } catch (err) {
+        console.error("Gagal memuat ringkasan:", err);
+        if (active) setSummaryError("Gagal memuat data ringkasan.");
+      } finally {
+        if (active) setSummaryLoading(false);
+      }
+    };
+    void loadSummary();
+    return () => { active = false; };
+  }, [summaryKey, summarySource, eventId]);
 
   useEffect(() => {
     if (ev?.status !== "active" || tab !== "monitoring") return;
@@ -775,7 +808,122 @@ function ManageEventInner() {
           </div>
 
           <StatsGrid stats={stats} />
-          <ParticipantList list={list} ev={ev} initials={initials} buildExtraChips={buildExtraChips} />
+
+          {/* Breakdown Ringkasan Data Section */}
+          <div className="glass mt-8 rounded-2xl p-6">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b pb-4" style={{ borderColor: "var(--outline-variant)" }}>
+              <div>
+                <h3 className="text-lg font-bold text-white">Ringkasan Data (Postgres Aggregation)</h3>
+                <p className="text-xs" style={{ color: "var(--on-surface-variant)" }}>
+                  Kelompokkan data peserta dan ketahui rasio kehadiran secara real-time.
+                </p>
+              </div>
+              
+              <select
+                value={summaryKey ? `${summarySource}:${summaryKey}` : ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) {
+                    setSummaryKey("");
+                    setSummarySource("");
+                  } else {
+                    const [source, key] = val.split(":");
+                    setSummarySource(source);
+                    setSummaryKey(key);
+                  }
+                }}
+                className="bd-input rounded-lg px-3 py-2 text-sm"
+                style={{ minWidth: 220 }}
+              >
+                <option value="">-- Kelompokkan Data --</option>
+                {ev.field_config.institution.enabled && (
+                  <option value="extra_data:institution">Instansi / Lembaga</option>
+                )}
+                {ev.field_config.position.enabled && (
+                  <option value="extra_data:position">Jabatan / Posisi</option>
+                )}
+                {ev.field_config.idNumber.enabled && (
+                  <option value="extra_data:idNumber">NIP / NIM / ID</option>
+                )}
+                {ev.field_config.customQuestions.map((q) => (
+                  <option key={q.id} value={`custom_data:${q.id}`}>{q.label || "Kuesioner Custom"}</option>
+                ))}
+              </select>
+            </div>
+
+            {summaryLoading && (
+              <div className="flex items-center justify-center py-8">
+                <span className="material-symbols-outlined animate-spin text-3xl" style={{ color: "var(--green)" }}>
+                  progress_activity
+                </span>
+              </div>
+            )}
+
+            {summaryError && (
+              <p className="text-center text-sm py-4" style={{ color: "var(--error)" }}>
+                {summaryError}
+              </p>
+            )}
+
+            {!summaryLoading && !summaryError && summaryData.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b" style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface-variant)" }}>
+                      <th className="py-3 px-4 font-bold">Kategori / Nilai</th>
+                      <th className="py-3 px-4 font-bold text-center">Terdaftar</th>
+                      <th className="py-3 px-4 font-bold text-center">Check-in</th>
+                      <th className="py-3 px-4 font-bold text-center">Rasio Kehadiran</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryData.map((row, i) => {
+                      const pct = row.total_participants > 0 
+                        ? Math.round((row.checked_in_count / row.total_participants) * 100) 
+                        : 0;
+                      return (
+                        <tr key={i} className="border-b hover:bg-white/5" style={{ borderColor: "var(--outline-variant)" }}>
+                          <td className="py-3 px-4 font-medium text-white">{row.group_value}</td>
+                          <td className="py-3 px-4 text-center">{row.total_participants}</td>
+                          <td className="py-3 px-4 text-center">{row.checked_in_count}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-20 bg-white/10 h-2 rounded-full overflow-hidden shrink-0">
+                                <div 
+                                  className="h-full" 
+                                  style={{ 
+                                    width: `${pct}%`, 
+                                    background: pct >= 80 ? "var(--green)" : pct >= 40 ? "var(--cyan)" : "var(--primary)" 
+                                  }} 
+                                />
+                              </div>
+                              <span className="font-mono text-xs w-8 text-white">{pct}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!summaryLoading && !summaryError && summaryKey && summaryData.length === 0 && (
+              <p className="text-center text-sm py-4" style={{ color: "var(--on-surface-variant)" }}>
+                Tidak ada data breakdown untuk kolom ini.
+              </p>
+            )}
+            
+            {!summaryKey && (
+              <p className="text-center text-sm py-4" style={{ color: "var(--on-surface-variant)" }}>
+                Silakan pilih kolom untuk melihat ringkasan data.
+              </p>
+            )}
+          </div>
+
+          <div className="mt-8">
+            <ParticipantList list={list} ev={ev} initials={initials} buildExtraChips={buildExtraChips} />
+          </div>
         </div>
       )}
 
@@ -1130,11 +1278,11 @@ function EditEventModal({
                       </div>
                       <div className="flex items-center gap-4 text-xs" style={{ color: "var(--on-surface-variant)" }}>
                         <label className="flex items-center gap-1">
-                          <input type="checkbox" checked={cfg.enabled} disabled={fieldConfigLocked} onChange={(e) => updatePresetField(field.key, { enabled: e.target.checked, required: e.target.checked ? cfg.required : false })} className="accent-[var(--green)] disabled:opacity-50" />
+                          <input type="checkbox" checked={cfg.enabled} disabled={fieldConfigLocked} onChange={(e) => updatePresetField(field.key, { enabled: e.target.checked, required: e.target.checked ? cfg.required : false })} className="accent-(--green) disabled:opacity-50" />
                           Tampilkan
                         </label>
                         <label className="flex items-center gap-1">
-                          <input type="checkbox" checked={cfg.required} disabled={fieldConfigLocked || !cfg.enabled} onChange={(e) => updatePresetField(field.key, { required: e.target.checked })} className="accent-[var(--green)] disabled:opacity-50" />
+                          <input type="checkbox" checked={cfg.required} disabled={fieldConfigLocked || !cfg.enabled} onChange={(e) => updatePresetField(field.key, { required: e.target.checked })} className="accent-(--green) disabled:opacity-50" />
                           Wajib
                         </label>
                       </div>

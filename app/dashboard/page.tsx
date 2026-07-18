@@ -219,70 +219,46 @@ function DashboardContent() {
   }
 
   return (
-    <div className="bd min-h-screen pb-16">
-      <header className="sticky top-0 z-40 mb-10 border-b shadow-sm" style={{ background: "color-mix(in srgb, var(--background) 94%, transparent)", borderColor: "var(--outline-variant)", backdropFilter: "blur(18px)" }}>
-        <div className="mx-auto max-w-5xl px-4 py-3 sm:py-4 md:px-0">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 sm:flex-nowrap">
-            <h1 className="w-full text-lg font-bold sm:w-auto sm:text-2xl">Halo, {profileGreeting}! 👋</h1>
-            <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
-              <Link href="/create/package" className="flex-1 rounded-xl px-4 py-2 text-center text-sm font-bold shadow-sm transition hover:-translate-y-0.5 sm:flex-none sm:px-5 sm:py-2.5" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Buat Event Baru</Link>
-              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-                <div className="relative" ref={notifRef}>
-                  <button onClick={() => setNotifOpen((v) => !v)} className="relative flex h-8 w-8 items-center justify-center rounded-full border transition hover:bg-[--surface-container] sm:h-10 sm:w-10" style={{ borderColor: "var(--outline-variant)" }} aria-label="Notifikasi">
-                    <span className="material-symbols-outlined">notifications</span>
-                    {unreadCount > 0 && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5" />}
-                  </button>
-                  {notifOpen && (
-                    <div className="fixed inset-x-4 top-[104px] z-50 max-h-96 overflow-y-auto rounded-2xl border p-4 shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-3 sm:w-80" style={{ background: "var(--surface)", borderColor: "var(--outline-variant)", boxShadow: "var(--shadow-lg)" }}>
-                      <div className="mb-3 flex items-center justify-between">
-                        <p className="font-bold">Notifikasi</p>
-                        <button onClick={markAllRead} className="text-xs" style={{ color: "var(--primary)" }}>Tandai semua dibaca</button>
-                      </div>
-                      {notifications.length === 0 ? (
-                        <p className="py-8 text-center text-sm" style={{ color: "var(--on-surface-variant)" }}>Tidak ada notifikasi</p>
-                      ) : notifications.map((n) => {
-                        const color = { success: "var(--success)", warning: "var(--warning)", info: "var(--primary)", error: "var(--error)" }[n.type];
-                        return (
-                          <button key={n.id} onClick={() => n.eventId && router.push(`/dashboard/events/${n.eventId}`)} className="flex w-full gap-3 rounded-xl p-3 text-left transition hover:bg-[--surface-container]">
-                            <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
-                            <span className="min-w-0">
-                              <span className="block text-sm font-bold">{n.title}</span>
-                              <span className="line-clamp-2 block text-xs" style={{ color: "var(--on-surface-variant)" }}>{n.message}</span>
-                              <span className="mt-1 block text-[10px]" style={{ color: "var(--on-surface-variant)" }}>{relativeTime(n.createdAt)}</span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+    <div className="bd min-h-screen pb-16 px-4 md:px-10 pt-6">
+      <header className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b pb-6" style={{ borderColor: "var(--outline-variant)" }}>
+        <h1 className="text-2xl font-bold">Halo, {profileGreeting}! 👋</h1>
+        <div className="flex items-center gap-3">
+          <Link href="/create/package" className="rounded-xl px-5 py-2.5 text-center text-sm font-bold shadow-sm transition hover:-translate-y-0.5" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>
+            Buat Event Baru
+          </Link>
+          <div className="relative" ref={notifRef}>
+            <button onClick={() => setNotifOpen((v) => !v)} className="relative flex h-10 w-10 items-center justify-center rounded-full border transition hover:bg-[--surface-container]" style={{ borderColor: "var(--outline-variant)" }} aria-label="Notifikasi">
+              <span className="material-symbols-outlined">notifications</span>
+              {unreadCount > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500" />}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 top-full mt-3 z-50 max-h-96 w-80 overflow-y-auto rounded-2xl border p-4 shadow-2xl" style={{ background: "var(--surface)", borderColor: "var(--outline-variant)", boxShadow: "var(--shadow-lg)" }}>
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="font-bold">Notifikasi</p>
+                  <button onClick={markAllRead} className="text-xs" style={{ color: "var(--primary)" }}>Tandai semua dibaca</button>
                 </div>
-                <ThemeToggle />
-                <div className="relative" ref={profileRef}>
-                  <button onClick={() => setProfileOpen((v) => !v)} className="flex h-8 w-8 items-center justify-center rounded-full font-bold sm:h-9 sm:w-9" style={{ background: "var(--brand-gradient)", color: "var(--on-primary)" }}>
-                    {avatarUrl ? (
-                      <Image src={avatarUrl} alt="Avatar" width={36} height={36} className="h-8 w-8 rounded-full object-cover sm:h-9 sm:w-9" />
-                    ) : (
-                      initials
-                    )}
-                  </button>
-                  {profileOpen && (
-                    <div className="fixed inset-x-4 top-[104px] z-50 rounded-2xl border p-3 shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-3 sm:min-w-48" style={{ background: "var(--surface)", borderColor: "var(--outline-variant)", boxShadow: "var(--shadow-lg)" }}>
-                      <div className="mb-2 border-b pb-3" style={{ borderColor: "var(--outline-variant)" }}>
-                        <p className="text-sm font-bold">{profileFullName || profileUsername || email}</p>
-                        <p className="text-xs" style={{ color: "var(--on-surface-variant)" }}>{email}</p>
-                      </div>
-                      <Link href="/profile" className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[--surface-container]">⚙️ Pengaturan</Link>
-                      <button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[--surface-container]">🚪 Keluar</button>
-                    </div>
-                  )}
-                </div>
+                {notifications.length === 0 ? (
+                  <p className="py-8 text-center text-sm" style={{ color: "var(--on-surface-variant)" }}>Tidak ada notifikasi</p>
+                ) : notifications.map((n) => {
+                  const color = { success: "var(--success)", warning: "var(--warning)", info: "var(--primary)", error: "var(--error)" }[n.type];
+                  return (
+                    <button key={n.id} onClick={() => n.eventId && router.push(`/dashboard/events/${n.eventId}`)} className="flex w-full gap-3 rounded-xl p-3 text-left transition hover:bg-[--surface-container]">
+                      <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold">{n.title}</span>
+                        <span className="line-clamp-2 block text-xs" style={{ color: "var(--on-surface-variant)" }}>{n.message}</span>
+                        <span className="mt-1 block text-[10px]" style={{ color: "var(--on-surface-variant)" }}>{relativeTime(n.createdAt)}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 md:px-0">
+      <main>
         {totalEvents === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <span className="material-symbols-outlined mb-4 text-6xl" style={{ color: "var(--on-surface-variant)" }}>
@@ -343,14 +319,12 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <AuthGuard>
-      <Suspense fallback={
-        <div className="bd flex min-h-screen items-center justify-center">
-          <span className="material-symbols-outlined animate-spin text-5xl" style={{ color: "var(--primary)" }}>progress_activity</span>
-        </div>
-      }>
-        <DashboardContent />
-      </Suspense>
-    </AuthGuard>
+    <Suspense fallback={
+      <div className="bd flex min-h-screen items-center justify-center">
+        <span className="material-symbols-outlined animate-spin text-5xl" style={{ color: "var(--primary)" }}>progress_activity</span>
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }

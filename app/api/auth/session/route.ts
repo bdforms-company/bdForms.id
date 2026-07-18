@@ -18,3 +18,24 @@ export async function GET() {
     return NextResponse.json({ session: null, error: message }, { status: 500 });
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const { session } = await request.json();
+    if (!session || !session.access_token || !session.refresh_token) {
+      return NextResponse.json({ error: "Missing session tokens" }, { status: 400 });
+    }
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.setSession({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

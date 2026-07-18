@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import type { CustomField, FieldConfig } from "@/lib/types";
 import { DEFAULT_FIELD_CONFIG, PRESET_FIELDS, parseFieldConfig } from "@/lib/types";
 import { SignaturePad, type SignaturePadHandle } from "@/components/SignaturePad";
+import * as Sentry from "@sentry/nextjs";
 import "../design.css";
 
 type Result = { id: string; name: string; qr_token: string };
@@ -46,8 +47,23 @@ export default function RegisterClient() {
   const [pendingPayment, setPendingPayment] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [hasDownloadedQR, setHasDownloadedQR] = useState(false);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const emailSentRef = useRef(false);
   const autoDownloadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!result) {
+      setQrImageUrl(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const canvas = document.querySelector("#modal-qr-container canvas") as HTMLCanvasElement | null;
+      if (canvas) {
+        setQrImageUrl(canvas.toDataURL("image/png"));
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [result]);
 
   useEffect(() => {
     setEventId(new URLSearchParams(window.location.search).get("eventId"));
@@ -189,14 +205,22 @@ export default function RegisterClient() {
   };
 
   const downloadModalQR = () => {
-    const canvas = document.querySelector("#modal-qr-container canvas") as HTMLCanvasElement | null;
-    if (!canvas) return;
-    const dataUrl = canvas.toDataURL("image/png");
-    const link = document.createElement("a");
-    link.href = dataUrl;
-    link.download = "tiket-bdforms.png";
-    link.click();
-    setHasDownloadedQR(true);
+    try {
+      const canvas = document.querySelector("#modal-qr-container canvas") as HTMLCanvasElement | null;
+      const dataUrl = canvas ? canvas.toDataURL("image/png") : qrImageUrl;
+      if (!dataUrl || !result) {
+        throw new Error("QR Code image is not ready yet.");
+      }
+      const safeName = result.name.trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "_") || "peserta";
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `Tiket_QR_${safeName}.png`;
+      link.click();
+      setHasDownloadedQR(true);
+    } catch (err) {
+      console.error("Gagal mengunduh QR:", err);
+      alert("Gagal mengunduh tiket secara otomatis. Silakan tekan lama gambar QR di atas untuk menyimpannya secara manual.");
+    }
   };
 
   useEffect(() => {
@@ -283,6 +307,10 @@ export default function RegisterClient() {
       setModalOpen(true);
     } catch (e) {
       console.error("Register error:", e);
+      Sentry.captureException(e, {
+        tags: { eventId: eventId || undefined, action: "register" },
+        extra: { name, email }
+      });
       const msg =
         e instanceof Error
           ? e.message
@@ -399,7 +427,12 @@ export default function RegisterClient() {
 
             {/* QR Code Container */}
             <div className="mx-auto mb-6 inline-block bg-white p-4 rounded-2xl shadow-lg" id="modal-qr-container">
-              <QRCodeCanvas value={result.qr_token} size={220} />
+              {qrImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qrImageUrl} alt="QR Code" width={220} height={220} className="mx-auto" />
+              ) : (
+                <QRCodeCanvas value={result.qr_token} size={220} />
+              )}
             </div>
 
             <p className="mb-2 text-lg font-bold text-white">{result.name}</p>
@@ -416,6 +449,10 @@ export default function RegisterClient() {
               <span className="material-symbols-outlined">download</span>
               Download Tiket QR
             </button>
+
+            <p className="mt-3 text-xs text-gray-400">
+              💡 Tips: Jika tombol unduh tidak berfungsi di HP Anda, Anda dapat menekan lama gambar QR di atas lalu pilih &quot;Simpan Gambar&quot;.
+            </p>
 
             {/* Exit button, only visible after downloading */}
             {hasDownloadedQR && (
