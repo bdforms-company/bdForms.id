@@ -130,3 +130,84 @@ As per development preferences stated in the codebase and `schema.sql`:
       bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text
     );
     ```
+
+---
+
+## 🛠️ Remote Procedure Calls (RPC)
+
+Custom Postgres functions are configured inside Supabase to handle transactional bulk operations and fast database-side groupings.
+
+### 1. `batch_check_in`
+Enables the panitia check-in scanner to submit a batch of participant tokens in a single database transaction, preventing server resource exhaustion.
+
+*   **SQL Definition:**
+    ```sql
+    create or replace function public.batch_check_in(tokens text[])
+    returns table (
+      qr_token text,
+      is_checked_in boolean,
+      check_in_time timestamptz
+    )
+    language sql
+    security definer
+    set search_path = public
+    as $$
+      update participants p
+      set
+        is_checked_in = true,
+        check_in_time = coalesce(p.check_in_time, now())
+      where p.qr_token = any(tokens)
+      returning p.qr_token, p.is_checked_in, p.check_in_time;
+    $$;
+    ```
+*   **Parameters:**
+    *   `tokens` (`text[]`): Array of unique qr_token strings.
+*   **Return Type:** Table schema containing the updated check-in records (`qr_token`, `is_checked_in`, `check_in_time`).
+
+---
+
+### 2. `get_event_summary`
+Handles database-side aggregation of registrations and attendance ratios grouped dynamically by preset columns or custom questionnaire answers.
+
+*   **SQL Definition:**
+    ```sql
+    create or replace function public.get_event_summary(
+      p_event_id uuid,
+      p_group_by_key text,
+      p_source_column text
+    )
+    returns table (
+      group_value text,
+      total_participants bigint,
+      checked_in_count bigint
+    )
+    language plpgsql
+    security definer
+    set search_path = public
+    as $$
+    begin
+      return query
+      select
+        coalesce(nullif(
+          case
+            when p_source_column = 'custom_data' then p.custom_data ->> p_group_by_key
+            when p_source_column = 'extra_data' then p.extra_data ->> p_group_by_key
+            when p_source_column = 'institution' then p.extra_data ->> 'institution'
+            when p_source_column = 'phone' then p.extra_data ->> 'phone'
+            else null
+          end, ''
+        ), 'Tidak Diketahui') as group_value,
+        count(*)::bigint as total_participants,
+        count(*) filter (where p.is_checked_in = true)::bigint as checked_in_count
+      from participants p
+      where p.event_id = p_event_id
+      group by 1
+      order by total_participants desc, group_value asc;
+    end;
+    $$;
+    ```
+*   **Parameters:**
+    *   `p_event_id` (`uuid`): Unique identifier of the event.
+    *   `p_group_by_key` (`text`): JSONB key value inside custom_data or extra_data.
+    *   `p_source_column` (`text`): Source column name (`custom_data` or `extra_data`).
+*   **Return Type:** Table structure returning categorized keys (`group_value`), enrollment size (`total_participants`), and checked-in attendees (`checked_in_count`).

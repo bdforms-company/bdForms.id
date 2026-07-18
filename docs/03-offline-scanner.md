@@ -23,6 +23,9 @@ interface ScannerStore {
   isReady: boolean;                           // Initial database download status
   totalCount: number;                         // Total count tracking indicator
   lastScanned: Participant | null;            // Last analyzed participant record
+  hydrated: boolean;                          // Zustand IndexedDB hydration status
+  isSyncing: boolean;                         // True if synchronization API request is active
+  syncError: string | null;                   // Error message of last sync attempt
 
   // Actions
   fetchInitialData: (eventId?: string) => Promise<void>;
@@ -30,6 +33,7 @@ interface ScannerStore {
   processCheckIn: (qrToken: string) => Participant | null;
   syncToServer: () => Promise<void>;
   setCameraError: (status: boolean) => void;
+  setHydrated: (status: boolean) => void;
   reset: () => void;
 }
 ```
@@ -61,7 +65,7 @@ The following sequence outlines how a scan resolves from camera frame capture to
                     └───► 3. Fire-and-forget: syncToServer()
                                     │
                                     ▼
-                          [Iterate syncQueue]
+                          [batch_check_in RPC]
                                     │
                          ┌──────────┴──────────┐
                          ▼                     ▼
@@ -69,27 +73,47 @@ The following sequence outlines how a scan resolves from camera frame capture to
                 (Remove from Queue)      (Retained in `syncQueue`)
 ```
 
-### Step 1: Initial Sync & Hydration (`fetchInitialData`)
-Upon opening the scanner interface, the application attempts to fetch all registered participants for the target event.
+### Step 1: Initial Sync & Safe Queue Merge (`fetchInitialData`)
+Upon opening the scanner interface and after hydration finishes, the application fetches registered participants for the target event, carefully preserving offline edits.
 ```typescript
 fetchInitialData: async (eventId = EVENT_ID) => {
-  const { data, error } = await supabase
-    .from("participants")
-    .select("*")
-    .eq("event_id", eventId);
+  try {
+    const { data, error } = await supabase
+      .from("participants")
+      .select("*")
+      .eq("event_id", eventId);
 
-  if (error) throw error;
+    if (error) throw error;
 
-  const map: Record<string, Participant> = {};
-  (data ?? []).forEach((p) => {
-    map[p.qr_token] = p as Participant;
-  });
+    const map: Record<string, Participant> = {};
+    const localQueue = get().syncQueue;
+    const localParticipants = get().participants;
 
-  set({ participants: map, totalCount: data?.length ?? 0, isReady: true });
+    (data ?? []).forEach((p) => {
+      const qrToken = p.qr_token;
+      if (localQueue.includes(qrToken) && localParticipants[qrToken]) {
+        // Keep the local checked-in state if it's in the syncQueue
+        map[qrToken] = {
+          ...p,
+          is_checked_in: true,
+          check_in_time: localParticipants[qrToken].check_in_time || p.check_in_time,
+        } as Participant;
+      } else {
+        map[qrToken] = p as Participant;
+      }
+    });
+
+    set({ participants: map, totalCount: data?.length ?? 0, isReady: true });
+  } catch (err) {
+    Sentry.captureException(err, {
+      tags: { eventId, action: "fetchInitialData" }
+    });
+    throw err;
+  }
 }
 ```
 *   **Performance Optimization:** Rather than iterating or searching through arrays, elements are stored in a JavaScript `Record` hashed by the `qr_token` string. This guarantees constant-time $\mathcal{O}(1)$ scanning validation.
-*   **Offline Fallback:** If the client is offline when the page loads, the fetch fails. The catch block in `app/scan/page.tsx` captures the error, alerts the user that it is using locally stored state, and forces `isReady` to true.
+*   **Safe Merge Logic:** Before writing fetched database records to the local store state, the function checks if any attendee's check-in timestamp exists inside the local `syncQueue` (e.g. they check in offline, and the operator refreshes the page or fetches fresh records before syncing). If it does, we retain the local checked-in value to prevent data loss.
 
 ### Step 2: Instant Cache Validation (`validateScan`)
 When a QR token is read, validation occurs locally against the memory record.
@@ -132,63 +156,59 @@ processCheckIn: (qrToken) => {
 ```
 `syncToServer` is immediately launched as a fire-and-forget background task.
 
-### Step 4: Background Reconciliation & Idempotency (`syncToServer`)
+### Step 4: Transactional Batch Check-In (`syncToServer`)
 
-The store processes queued modifications in parallel, keeping only failed attempts in the queue while preventing duplicate processing or race conditions:
+The store processes queued modifications in a single database RPC execution, preventing duplicate transactions and parallel network requests:
 
 ```typescript
 syncToServer: async () => {
-  const { syncQueue, participants } = get();
-  if (syncQueue.length === 0) return;
+  const { syncQueue } = get();
+  if (syncQueue.length === 0) {
+    set({ syncError: null });
+    return;
+  }
 
-  // Deduplicate key values in the queue
   const pending = Array.from(new Set(syncQueue));
 
-  // Optimistically clear these processed tokens from the queue
-  // preventing concurrent calls from double-processing them
   set((s) => ({
+    isSyncing: true,
     syncQueue: s.syncQueue.filter((t) => !pending.includes(t)),
   }));
 
-  const failed: string[] = [];
-
-  await Promise.all(
-    pending.map(async (token) => {
-      const p = participants[token];
-      if (!p) return;
-      try {
-        const { error } = await supabase
-          .from("participants")
-          .update({
-            is_checked_in: true,
-            check_in_time: p.check_in_time,
-          })
-          .eq("qr_token", token);
-
-        if (error) {
-          console.error(`Sync error for token ${token}:`, error);
-          failed.push(token);
-        }
-      } catch (err) {
-        console.error(`Sync exception for token ${token}:`, err);
-        failed.push(token);
-      }
-    })
-  );
-
-  if (failed.length > 0) {
-    // Re-add failed tokens back to the queue (avoiding duplicates)
+  try {
+    const { error } = await supabase.rpc("batch_check_in", { tokens: pending });
+    if (error) {
+      console.error("Batch check-in RPC failed:", error);
+      Sentry.captureException(new Error(`Batch check-in RPC failed: ${error.message}`), {
+        extra: { tokens: pending }
+      });
+      set((s) => ({
+        syncQueue: Array.from(new Set([...s.syncQueue, ...pending])),
+        syncError: `Gagal sinkron: ${error.message}`,
+        isSyncing: false,
+      }));
+    } else {
+      set({ syncError: null, isSyncing: false });
+    }
+  } catch (err) {
+    console.error("Batch check-in RPC exception:", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    Sentry.captureException(err, {
+      extra: { tokens: pending }
+    });
     set((s) => ({
-      syncQueue: Array.from(new Set([...s.syncQueue, ...failed])),
+      syncQueue: Array.from(new Set([...s.syncQueue, ...pending])),
+      syncError: `Gagal sinkron: ${message}`,
+      isSyncing: false,
     }));
   }
 }
 ```
 
-*   **Idempotency & Deduplication:** If `syncQueue` contains multiple check-in requests for the same token, the queue is deduplicated before execution. The database updates specify exact `check_in_time` values and set `is_checked_in = true`, ensuring that duplicate database requests are fully idempotent.
-*   **Race Condition Mitigation:** By optimistically clearing pending tokens from the queue *before* executing the asynchronous calls, we ensure that subsequent or concurrent calls to `syncToServer()` do not process the same tokens in parallel.
-*   **Failed Retry Strategy:** If any write requests return error statuses (network failure or timeout), the associated tokens are appended to `failed` and rewritten to the `syncQueue`.
-*   **Automatic Retries:** In standard operation, subsequent scans invoke `processCheckIn`, which fires `syncToServer()` again, forcing a re-evaluation of all failed items in the queue. Upon restarting the app, the rehydration process automatically triggers `syncToServer()` to process any lingering items.
+*   **Idempotency & Deduplication:** If `syncQueue` contains multiple check-in requests for the same token, the queue is deduplicated before execution. The SQL update sets `is_checked_in = true` and retains the earliest timestamp using `coalesce`, ensuring that retry actions are fully idempotent.
+*   **Race Condition Mitigation:** By optimistically clearing pending tokens from the queue *before* executing the asynchronous database calls, we ensure that subsequent scans or concurrent network events do not process the same tokens in parallel. If the query fails, the tokens are appended back to `syncQueue` at the end.
+*   **Observability Integration:** If synchronization fails, the error details are sent directly to Sentry with context tags mapping the affected participant tokens.
+*   **Automatic Retries:** Lingering items are automatically retried upon subsequent scans. During device restart or reload, the `onRehydrateStorage` Zustand hook auto-triggers `syncToServer()` as soon as cache hydration from IndexedDB is complete.
 
 ---
 
@@ -219,3 +239,5 @@ The frontend camera viewfinder in `app/scan/page.tsx` utilizes `html5-qrcode` (`
     });
     ```
     Once the cooldown reaches 0, scanning unlocks, allowing the user to scan the next attendee.
+5.  **Camera State Resume Guard:** To prevent browser runtime errors (such as `Cannot resume, scanner is not paused.`), state-based hooks evaluate the exact sensor status using `.getState()` prior to calling `.resume()`. Action calls are executed only when the scanner state matches `3` (PAUSED).
+

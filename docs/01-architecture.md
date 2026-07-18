@@ -38,6 +38,9 @@ bdForms/
 │   ├── dashboard/
 │   │   ├── events/
 │   │   │   └── [eventId]/            # Event management, analytics, settings & export
+│   │   ├── analytics/                # Aggregated event statistics dashboard
+│   │   ├── calendar/                 # Visual event scheduler calendar
+│   │   ├── layout.tsx                # Persistent client sidebar shell with navigation and theme toggles
 │   │   └── page.tsx                  # Central organizer dashboard index
 │   ├── doc/
 │   │   └── [slug]/                   # Redirect handler forwarding shortslugs to assets
@@ -112,14 +115,14 @@ bdForms/
 3. **Mailing via Brevo:** The handler triggers a `POST` to Brevo SMTP (`https://api.brevo.com/v3/smtp/email`) with the custom HTML email template including the generated QR Code image and the backup code.
 
 ### 3. Check-In Validating & Syncing Flow
-1. **Initialization:** Panitia logs into `/scan?eventId=[uuid]` or `/scan?token=[scanner_token]`. The client fetches **all** participant rows matching `event_id` into the local Zustand store using `fetchInitialData`.
+1. **Hydration & Initialization:** Panitia logs into `/scan?eventId=[uuid]`. The scanner waits until the Zustand state has completed rehydrating from IndexedDB (`hydrated === true`). Then, `fetchInitialData` is called. To prevent offline status loss, local check-in records present in `syncQueue` are safely merged into the fetched database participant record mapping.
 2. **Scanning:**
    - The device camera captures a QR code via `html5-qrcode`.
    - The client invokes `validateScan(qrToken)` in Zustand.
    - Lookups are checked in $\mathcal{O}(1)$ time against the client-side `participants` record map.
 3. **Local Check-In:** If verified, `processCheckIn(qrToken)` immediately marks the participant `is_checked_in = true` and updates `check_in_time` locally. This ensures zero delay for the operator.
 4. **Queue Processing:** The participant's `qr_token` is appended to the Zustand `syncQueue` array. `syncToServer()` is invoked in a fire-and-forget fashion.
-5. **Server Reconciliation:** `syncToServer` iterates over queued items, executing Supabase updates. Successful synchronizations are removed from `syncQueue`. Failed requests (e.g., due to local signal drop) remain in the queue and retry on subsequent scans.
+5. **Server Reconciliation:** `syncToServer` iterates over queued items, executing the `batch_check_in` Supabase RPC in a transactional update. Successful synchronizations are removed from `syncQueue`. Failed requests (e.g., due to local signal drop) remain in the queue, update sync status indicators, and retry automatically.
 
 ### 4. Persistent Login & XSS Mitigation Flow
 
@@ -131,8 +134,9 @@ To protect organizer accounts and prevent session theft through Cross-Site Scrip
 2. **In-Memory Browser Client:**
    - The browser-side Supabase client (`lib/supabase.ts`) is initialized with `auth.persistSession = false`, completely preventing write operations to `localStorage` or `sessionStorage`.
 3. **Session Rehydration & Hooks:**
-   - On application load, the custom `useAuth` hook triggers a secure server request to `/api/auth/session` which reads the `httpOnly` session cookies.
+   - On application load, the custom `useAuth` hook clears any legacy `sb-` tokens in localStorage and triggers a secure server request to `/api/auth/session` which reads the `httpOnly` session cookies.
    - If an active session is returned, the hook updates the browser client memory via `supabase.auth.setSession(...)`.
+   - The hook listens for auth state changes: `SIGNED_IN` and `TOKEN_REFRESHED` prompt a POST to `/api/auth/session` to sync the session to HTTP-only cookies; `SIGNED_OUT` triggers a POST to `/api/auth/signout` to clean up server-side cookies.
    - Subsequent client-side database reads/writes fetch the session directly from memory without writing to disk.
 4. **Invalidation & Sign Out:**
    - When an organizer logs out, the client triggers a POST request to `/api/auth/signout`. The server-side client performs the sign-out operation, instructing the browser to immediately clear all authentication cookies (setting `maxAge: 0` and clearing values).

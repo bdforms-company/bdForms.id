@@ -4,6 +4,33 @@ All notable changes to the **bdForms** platform will be documented in this file.
 
 ---
 
+## [2026-07-19]
+
+### Added
+- **Persistent Dashboard Sidebar Shell**:
+  - Implemented client layout in [layout.tsx](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/dashboard/layout.tsx) containing collapsible side navigation.
+  - Wrapped all subpages under `/dashboard` (Central Dashboard, Analytic Event, Kalender Event) inside a single parent [AuthGuard](file:///home/nblauliadka/02_Work/Today/bdForms.id/components/AuthGuard.tsx) wrapper.
+  - Created subpages: [analytics](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/dashboard/analytics/page.tsx) (aggregated stats cards and event overview) and [calendar](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/dashboard/calendar/page.tsx) (visual calendar schedule).
+- **Postgres Grouping Summary RPC**:
+  - Added [get_event_summary](file:///home/nblauliadka/02_Work/Today/bdForms.id/migrations/add_summarize_analytics_rpc.sql) RPC function to group and aggregate registrations and check-ins by dynamic question fields or preset columns (e.g. Instansi) in DB.
+  - Implemented dropdown selector and summary tables on event dashboard [page.tsx](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/dashboard/events/[eventId]/page.tsx) displaying attendance ratio progress bars.
+- **Observed Sentry Integration**:
+  - Added Sentry exception logging on scanner check-in batch failure in [useScannerStore.ts](file:///home/nblauliadka/02_Work/Today/bdForms.id/store/useScannerStore.ts).
+  - Wired Sentry capture to registration catch block in [RegisterClient.tsx](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/register/RegisterClient.tsx) and auth login catch block in [LoginClient.tsx](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/auth/login/LoginClient.tsx).
+
+### Changed
+- **Auth Cookie Synchronization**:
+  - Updated [useAuth.ts](file:///home/nblauliadka/02_Work/Today/bdForms.id/hooks/useAuth.ts) to clear legacy local storage `sb-` tokens on load and sync `SIGNED_IN` / `TOKEN_REFRESHED` states directly to `/api/auth/session` to update HTTP-only cookies.
+- **Durable Scanner Hydration UX**:
+  - Tracked `hydrated` and synchronization states in [useScannerStore.ts](file:///home/nblauliadka/02_Work/Today/bdForms.id/store/useScannerStore.ts), stalling initialization until Zustand cache is rehydrated.
+  - Upgraded [page.tsx](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/scan/page.tsx) to prevent overwriting local scans with staler fetched server data, and render sync count/failure messages.
+  - Added a state guard checking `.getState() === 3` before calling `.resume()` in the scanner, resolving browser exceptions.
+- **Improved Mobile QR Ticket Downloads**:
+  - Upgraded [RegisterClient.tsx](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/register/RegisterClient.tsx) to render QR tickets as an `<img>` tag converted dynamically from canvas, enabling long-press manual saving.
+  - Custom filename downloads formatted as `Tiket_QR_${safeName}.png` with input sanitization.
+
+---
+
 ## [2026-07-12]
 
 ### Added

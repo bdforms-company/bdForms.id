@@ -108,6 +108,23 @@ For client-side routing transitions, `instrumentation-client.ts` exports:
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 ```
 
+### 3. Manual Error Logging
+Explicit Sentry logging triggers are placed in critical operations:
+-   **Scanner Synchronization:** Captured in [useScannerStore.ts](file:///home/nblauliadka/02_Work/Today/bdForms.id/store/useScannerStore.ts) if a batch sync RPC request throws an exception or returns a failure response.
+-   **Attendee Registration:** Captured in [RegisterClient.tsx](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/register/RegisterClient.tsx) if the direct Supabase write operation throws or rejects.
+-   **Organizer Authentication:** Captured in [LoginClient.tsx](file:///home/nblauliadka/02_Work/Today/bdForms.id/app/auth/login/LoginClient.tsx) on unexpected connection failures during credential evaluation.
+
+---
+
+## 🖼️ Post-Registration Local QR Downloads
+
+To mitigate delivery delays or failures during peak mail queue congestion, registered attendees can download their tickets directly on-device from the registration page.
+
+### Technical Details:
+1.  **Canvas-to-Image Conversion:** The ticket card renders an HTML5 `<canvas>` using `qrcode.react`. In the background, a React hook reads the canvas data URL and updates a local state `qrImageUrl` mapping to an `<img>` element.
+2.  **Mobile Support:** The rendering of an `<img>` element instead of raw `<canvas>` ensures mobile users can long-press the QR code image to natively save it to their photo galleries (especially inside restricted webviews).
+3.  **Sanitized Filename:** The client sanitizes name strings before saving, substituting whitespace with underscores and removing invalid characters to output a safe `Tiket_QR_${safeName}.png` filename.
+
 ---
 
 ## ✍️ Canvas Digital Signature Pad
