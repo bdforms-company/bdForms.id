@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/AuthGuard";
-import ThemeToggle from "@/components/ThemeToggle";
 import { supabase } from "@/lib/supabase";
 import { generateNotifications } from "@/lib/notifications";
 import "../design.css";

@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/lib/supabase";
-import ThemeToggle from "@/components/ThemeToggle";
 import Image from "next/image";
 import "../design.css";
 
@@ -87,8 +86,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Footer (User Profile & Theme Toggle) */}
           <div className="mt-auto border-t border-[--outline-variant] pt-6 flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--on-surface-variant)" }}>Tema</span>
-              <ThemeToggle />
             </div>
             
             <div className="flex items-center gap-3 border-t border-[--outline-variant] pt-4">
@@ -120,16 +117,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="text-lg">bdForms</span>
             </Link>
 
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <button 
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-                className="rounded-lg p-2 border border-[--outline-variant]"
-                style={{ borderColor: "var(--outline-variant)" }}
-              >
-                <span className="material-symbols-outlined text-lg">{isMobileMenuOpen ? "close" : "menu"}</span>
-              </button>
-            </div>
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+              className="rounded-lg p-2 border border-[--outline-variant]"
+              style={{ borderColor: "var(--outline-variant)" }}
+            >
+              <span className="material-symbols-outlined text-lg">{isMobileMenuOpen ? "close" : "menu"}</span>
+            </button>
           </header>
 
           {/* Mobile Menu Drawer */}

@@ -14,6 +14,8 @@ export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const successMessage = searchParams.get("message");
+  const nextPath = searchParams.get("next");
+  const safeNext = nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +35,7 @@ export default function LoginClient() {
     setFieldErrors({});
     setLoading(true);
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (authError) {
         console.error("Login submission error:", authError);
         const msg = authError.message.toLowerCase();
@@ -47,8 +49,20 @@ export default function LoginClient() {
         setLoading(false);
         return;
       }
+      if (data.session) {
+        const syncRes = await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session: data.session }),
+        });
+        if (!syncRes.ok) {
+          setError("Login berhasil, tapi sinkronisasi sesi gagal. Coba refresh.");
+          setLoading(false);
+          return;
+        }
+      }
       router.refresh();
-      router.push("/dashboard");
+      window.location.replace(safeNext);
     } catch (err) {
       console.error("Unexpected error during login:", err);
       Sentry.captureException(err, {

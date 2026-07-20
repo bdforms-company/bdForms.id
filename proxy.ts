@@ -43,15 +43,20 @@ export async function proxy(request: NextRequest) {
   // Refresh session if expired
   const { data: { user } } = await supabase.auth.getUser();
 
+  const { pathname } = request.nextUrl;
+
+  // Send authenticated users away from the public landing/auth pages.
+  if (user && (pathname === "/" || pathname.startsWith("/auth"))) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   // Route protection
   const protectedRoutes = ["/dashboard", "/create", "/profile"];
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    request.nextUrl.pathname.startsWith(route)
-  );
+  const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
   if (isProtectedRoute && !user) {
     const loginUrl = new URL("/auth/login", request.url);
-    loginUrl.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
+    loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 

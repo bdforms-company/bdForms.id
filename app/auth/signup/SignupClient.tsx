@@ -22,6 +22,8 @@ export default function SignupClient() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [success, setSuccess] = useState(false);
+  const nextPath = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("next");
+  const safeNext = nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard";
 
   const validate = () => {
     const errors: FieldErrors = {};
@@ -57,8 +59,18 @@ export default function SignupClient() {
         await supabase.from("profiles").insert({ id: data.user.id, full_name: namaLengkap.trim() });
       }
       if (data.session) {
+        const syncRes = await fetch("/api/auth/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session: data.session }),
+        });
+        if (!syncRes.ok) {
+          setError("Akun berhasil dibuat, tapi sinkronisasi sesi gagal. Coba login ulang.");
+          setLoading(false);
+          return;
+        }
         router.refresh();
-        router.push("/dashboard");
+        window.location.replace(safeNext);
       } else {
         setSuccess(true);
       }
