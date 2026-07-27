@@ -1,6 +1,6 @@
 # System Architecture & Technical Stack
 
-This document details the core frameworks, folder structures, and data flows that govern the **bdForms** application.
+This document details the core frameworks, folder structures, and data flows that govern the **Regesit** application.
 
 ---
 
@@ -22,7 +22,7 @@ The platform is designed around a modern, typing-strict, and high-performance st
 The project organizes its routing and logic as follows:
 
 ```text
-bdForms/
+Regesit/
 ├── app/
 │   ├── api/
 │   │   ├── send-organizer-links/     # Sends onboarding links to organizers via Resend

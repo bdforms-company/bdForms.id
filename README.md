@@ -1,8 +1,8 @@
-# bdForms
+# Regesit
 
 > **Fast-Track Registration Platform** — Platform registrasi event end-to-end dengan sistem check-in super cepat (di bawah 3 detik), mendukung scanner offline-first, dan dilengkapi dashboard manajemen event yang komprehensif.
 
-[![Live Demo](https://img.shields.io/badge/demo-bdforms.id-5bffa1?style=for-the-badge)](https://www.bdforms.id)
+[![Live Demo](https://img.shields.io/badge/demo-regesit.com-5bffa1?style=for-the-badge)](https://www.regesit.com)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase)](https://supabase.com/)
@@ -11,11 +11,11 @@
 
 ## 🚀 Fitur Utama
 
-Dari versi MVP sebelumnya, **bdForms** telah berkembang pesat menjadi platform yang *production-ready* dengan berbagai penambahan fitur utama:
+Dari versi MVP sebelumnya, **Regesit** telah berkembang pesat menjadi platform yang *production-ready* dengan berbagai penambahan fitur utama:
 
 - **Sistem Autentikasi Lengkap (Supabase Auth):** Mendukung Login, Register, Lupa Password, dan Reset Password.
 - **Dashboard Organizer:** Dasbor terpusat untuk mengelola banyak event sekaligus, melihat metrik partisipan, dan mengelola pendaftaran.
-- **Custom Event Slugs (`/e/[slug]`):** Bagikan link pendaftaran yang rapi dan mudah diingat (contoh: `bdforms.id/e/konser-musik`).
+- **Custom Event Slugs (`/e/[slug]`):** Bagikan link pendaftaran yang rapi dan mudah diingat (contoh: `regesit.com/e/konser-musik`).
 - **Export Data Mudah:** Unduh rekap data partisipan langsung dari dashboard ke format **PDF** atau **Excel (XLSX)**.
 - **Profil Pengguna & Avatar:** Dukungan manajemen profil dan unggah foto profil (menggunakan Supabase Storage).
 - **Email Integration:** Terintegrasi dengan **Resend** untuk pengiriman notifikasi dan email transaksional.
@@ -119,4 +119,4 @@ bdforms/
 
 ---
 
-<p align="center">© 2026 bdForms · Built for speed.</p>
+<p align="center">© 2026 Regesit · Built for speed.</p>

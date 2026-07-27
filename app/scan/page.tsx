@@ -39,10 +39,9 @@ function LiveClock() {
     return () => clearInterval(id);
   }, []);
   const p2 = (n: number) => String(n).padStart(2, "0");
-  const p3 = (n: number) => String(n).padStart(3, "0");
   return (
     <div className="inline-block rounded-lg px-4 py-2 font-mono text-2xl font-bold" style={{ background: "rgba(91,255,161,0.1)", color: "var(--green)" }}>
-      {p2(now.getHours())}:{p2(now.getMinutes())}:{p2(now.getSeconds())}:{p3(now.getMilliseconds())} WIB
+      {p2(now.getHours())}:{p2(now.getMinutes())}:{p2(now.getSeconds())} WIB
     </div>
   );
 }
@@ -71,6 +70,12 @@ export default function ScanPage() {
   const [eventName, setEventName] = useState("");
   const [eventDateLabel, setEventDateLabel] = useState("");
   const [autoScan, setAutoScan] = useState(false); // New state for Auto-scan Mode
+  const [lastScanStatus, setLastScanStatus] = useState<{
+    status: 'success' | 'duplicate' | 'notfound';
+    message: string;
+    name?: string;
+    time?: string;
+  } | null>(null);
 
   // Load autoScan preference from localStorage
   useEffect(() => {
@@ -184,6 +189,12 @@ export default function ScanPage() {
       if (result === "VERIFIED") {
         showAutoScanToast(`Check-in Berhasil — ${participant?.name || "Participant"}`, "VERIFIED");
         setVerifiedCount(prev => prev + 1);
+        setLastScanStatus({
+          status: 'success',
+          message: 'Check-in Berhasil',
+          name: participant?.name || 'Peserta',
+          time: new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
         if (qrReaderDivRef.current) {
           qrReaderDivRef.current.classList.add('flash-green');
           setTimeout(() => {
@@ -193,9 +204,20 @@ export default function ScanPage() {
       } else if (result === "DUPLICATE") {
         showAutoScanToast(`Sudah Check-in — ${participant?.name || "Participant"}`, "DUPLICATE");
         setDuplicateCount(prev => prev + 1);
+        setLastScanStatus({
+          status: 'duplicate',
+          message: 'Sudah Check-in',
+          name: participant?.name || 'Peserta',
+          time: participant?.check_in_time ? new Date(participant.check_in_time).toLocaleTimeString("id-ID") + ' WIB' : new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
       } else { // NOTFOUND
         showAutoScanToast("QR Tidak Dikenali", "NOTFOUND");
         setNotFoundCount(prev => prev + 1);
+        setLastScanStatus({
+          status: 'notfound',
+          message: 'QR Tidak Dikenali',
+          time: new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
       }
 
       // Implement cooldown
@@ -212,9 +234,30 @@ export default function ScanPage() {
         });
       }, 100);
     } else {
-      if (result === "VERIFIED") setUi("verified");
-      else if (result === "DUPLICATE") setUi("duplicate");
-      else setUi("notfound");
+      if (result === "VERIFIED") {
+        setUi("verified");
+        setLastScanStatus({
+          status: 'success',
+          message: 'Check-in Berhasil',
+          name: participant?.name || 'Peserta',
+          time: new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+      } else if (result === "DUPLICATE") {
+        setUi("duplicate");
+        setLastScanStatus({
+          status: 'duplicate',
+          message: 'Sudah Check-in',
+          name: participant?.name || 'Peserta',
+          time: participant?.check_in_time ? new Date(participant.check_in_time).toLocaleTimeString("id-ID") + ' WIB' : new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+      } else {
+        setUi("notfound");
+        setLastScanStatus({
+          status: 'notfound',
+          message: 'QR Tidak Dikenali',
+          time: new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+      }
     }
   }, [showAutoScanToast, autoScan, validateScan, processCheckIn, participants]);
 
@@ -395,16 +438,68 @@ export default function ScanPage() {
     }
 
     if (!p) {
-      setUi("notfound");
+      if (autoScan) {
+        showAutoScanToast("QR Tidak Dikenali", "NOTFOUND");
+        setNotFoundCount(prev => prev + 1);
+        setLastScanStatus({
+          status: 'notfound',
+          message: 'QR Tidak Dikenali',
+          time: new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+        setManual("");
+      } else {
+        setUi("notfound");
+        setLastScanStatus({
+          status: 'notfound',
+          message: 'QR Tidak Dikenali',
+          time: new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+      }
       return;
     }
 
-    // Execute processCheckIn directly
-    processCheckIn(p.qr_token);
-    if (p.is_checked_in) {
-      setUi("duplicate");
+    if (autoScan) {
+      processCheckIn(p.qr_token);
+      if (p.is_checked_in) {
+        showAutoScanToast(`Sudah Check-in — ${p.name}`, "DUPLICATE");
+        setDuplicateCount(prev => prev + 1);
+        setLastScanStatus({
+          status: 'duplicate',
+          message: 'Sudah Check-in',
+          name: p.name,
+          time: p.check_in_time ? new Date(p.check_in_time).toLocaleTimeString("id-ID") + ' WIB' : new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+      } else {
+        showAutoScanToast(`Check-in Berhasil — ${p.name}`, "VERIFIED");
+        setVerifiedCount(prev => prev + 1);
+        setLastScanStatus({
+          status: 'success',
+          message: 'Check-in Berhasil',
+          name: p.name,
+          time: new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+      }
+      setManual(""); // Clear manual input field
     } else {
-      setUi("verified");
+      // Execute processCheckIn directly
+      processCheckIn(p.qr_token);
+      if (p.is_checked_in) {
+        setUi("duplicate");
+        setLastScanStatus({
+          status: 'duplicate',
+          message: 'Sudah Check-in',
+          name: p.name,
+          time: p.check_in_time ? new Date(p.check_in_time).toLocaleTimeString("id-ID") + ' WIB' : new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+      } else {
+        setUi("verified");
+        setLastScanStatus({
+          status: 'success',
+          message: 'Check-in Berhasil',
+          name: p.name,
+          time: new Date().toLocaleTimeString("id-ID") + ' WIB'
+        });
+      }
     }
   };
 
@@ -415,6 +510,7 @@ export default function ScanPage() {
     setVerifiedCount(0);
     setDuplicateCount(0);
     setNotFoundCount(0);
+    setLastScanStatus(null);
     if (scannerRef.current) {
       scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(() => {});
       scannerRef.current = null;
@@ -496,15 +592,30 @@ export default function ScanPage() {
   }
 
   if (ui === "scanning") {
-    if (autoScan) {
-      return (
-        <div className="bd flex min-h-screen flex-col items-center gap-4 px-4 pt-10 relative">
-          <h1 className="text-xl font-bold">Arahkan kamera ke QR (Auto-Scan)</h1>
+    return (
+      <div className="bd flex min-h-screen flex-col items-center px-4 pt-8 pb-12">
+        {/* Branding/Header */}
+        <div className="w-full max-w-lg mb-6 flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--outline-variant)" }}>
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Regesit" className="h-8 w-8 object-contain" />
+            <div className="min-w-0">
+              <span className="font-bold text-base text-white block">Regesit Scanner</span>
+              {eventName && <p className="text-xs text-gray-400 truncate max-w-[200px]" title={eventName}>{eventName}</p>}
+            </div>
+          </div>
+          <LiveClock />
+        </div>
+
+        <h1 className="text-lg font-bold mb-4">{autoScan ? "Mode Auto-Scan (Kamera Aktif)" : "Arahkan kamera ke QR"}</h1>
+        
+        {/* Camera viewport card/frame */}
+        <div className="glass w-full max-w-lg overflow-hidden rounded-2xl border p-2 shadow-2xl relative mb-6">
           <div
             id="qr-reader"
             ref={qrReaderDivRef}
-            className="w-full max-w-lg overflow-hidden rounded-2xl border-8 border-transparent relative"
-            style={{ animation: (cooldown > 0 && ui === "scanning") ? `flash-cooldown ${cooldown * 1000}ms linear forwards` : 'none' }}
+            className="w-full aspect-square overflow-hidden rounded-xl relative"
+            style={{ animation: (cooldown > 0 && autoScan) ? `flash-cooldown ${cooldown * 1000}ms linear forwards` : 'none' }}
           >
             {standby && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center z-20 gap-3" style={{ backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.6)' }}>
@@ -513,137 +624,125 @@ export default function ScanPage() {
                 <p className="text-xs max-w-xs text-gray-300">Standby mode aktif untuk menghemat baterai & mencegah overheat.</p>
               </div>
             )}
-            {cooldown > 0 && (
+            {cooldown > 0 && autoScan && (
               <div className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold z-10" style={{ backdropFilter: 'blur(2px)', background: 'rgba(0,0,0,0.3)' }}>
                 {Math.ceil(cooldown)}
               </div>
             )}
           </div>
-
-          {/* Standby & Manual Controls */}
-          <div className="w-full max-w-lg flex flex-col gap-4 mt-2">
-            <button
-              onClick={() => setStandby(!standby)}
-              className="w-full rounded-xl py-3 font-bold flex items-center justify-center gap-2 transition active:scale-95"
-              style={{
-                background: standby ? "var(--primary)" : "var(--surface-container-high)",
-                color: standby ? "var(--on-primary)" : "white",
-              }}
-            >
-              <span className="material-symbols-outlined">{standby ? "play_arrow" : "pause"}</span>
-              {standby ? "Resume Kamera" : "Standby Mode (Pause)"}
-            </button>
-
-            <div className="flex gap-2">
-              <input
-                value={manual}
-                onChange={(e) => setManual(e.target.value)}
-                placeholder="Ketik nama atau token QR..."
-                className="bd-input flex-1 rounded-lg p-3 text-center font-mono"
-              />
-              <button
-                onClick={submitManual}
-                className="rounded-lg px-5 font-bold"
-                style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}
-              >
-                Check-in
-              </button>
-            </div>
-          </div>
-
-          <button onClick={backToReady} className="rounded-lg border px-6 py-2 mt-4" style={{ borderColor: "var(--outline-variant)" }}>✕ Keluar Auto-Scan</button>
-
-          {/* Active Toast Notification */}
-          {activeToast && (
-            <div
-              className="animate-toast"
-              style={{ ...activeToast.style, display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1", flexShrink: 0 }}
-              >
-                {activeToast.type === 'VERIFIED' ? 'check_circle' : activeToast.type === 'DUPLICATE' ? 'error' : 'help'}
-              </span>
-              {activeToast.message}
-            </div>
-          )}
-
-          <style jsx>{`
-            .flash-green {
-              animation: green-border-flash 0.3s ease-out forwards;
-            }
-            @keyframes green-border-flash {
-              0% { border-color: transparent; }
-              50% { border-color: rgba(91,255,161,0.7); }
-              100% { border-color: transparent; }
-            }
-            @keyframes flash-cooldown {
-              0% { border-color: transparent; }
-              50% { border-color: rgba(255,255,255,0.7); }
-              100% { border-color: transparent; }
-            }
-            @keyframes toast-fade-in-out {
-              0% { opacity: 0; }
-              16.6% { opacity: 1; }
-              83.3% { opacity: 1; }
-              100% { opacity: 0; }
-            }
-            .animate-toast {
-              animation: toast-fade-in-out 1.2s ease-in-out forwards;
-            }
-          `}</style>
         </div>
-      );
-    } else {
-      return (
-        <div className="bd flex min-h-screen flex-col items-center gap-4 px-4 pt-10">
-          <h1 className="text-xl font-bold">Arahkan kamera ke QR</h1>
-          <div id="qr-reader" className="glass w-full max-w-lg overflow-hidden rounded-2xl relative">
-            {standby && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center z-20 gap-3" style={{ backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.6)' }}>
-                <span className="material-symbols-outlined text-5xl text-yellow-400 animate-pulse">hourglass_empty</span>
-                <p className="text-lg font-bold text-white">Kamera Ditangguhkan</p>
-                <p className="text-xs max-w-xs text-gray-300">Standby mode aktif untuk menghemat baterai & mencegah overheat.</p>
-              </div>
-            )}
-          </div>
 
-          {/* Standby & Manual Controls */}
-          <div className="w-full max-w-lg flex flex-col gap-4 mt-2">
-            <button
-              onClick={() => setStandby(!standby)}
-              className="w-full rounded-xl py-3 font-bold flex items-center justify-center gap-2 transition active:scale-95"
-              style={{
-                background: standby ? "var(--primary)" : "var(--surface-container-high)",
-                color: standby ? "var(--on-primary)" : "white",
-              }}
-            >
-              <span className="material-symbols-outlined">{standby ? "play_arrow" : "pause"}</span>
-              {standby ? "Resume Kamera" : "Standby Mode (Pause)"}
-            </button>
-
-            <div className="flex gap-2">
-              <input
-                value={manual}
-                onChange={(e) => setManual(e.target.value)}
-                placeholder="Ketik nama atau token QR..."
-                className="bd-input flex-1 rounded-lg p-3 text-center font-mono"
-              />
-              <button
-                onClick={submitManual}
-                className="rounded-lg px-5 font-bold"
-                style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}
-              >
-                Check-in
-              </button>
+        {/* Scan Status Area (Visual operator feedback) */}
+        {lastScanStatus && (
+          <div className="w-full max-w-lg rounded-xl border p-4 mb-6 flex items-center gap-3 transition-all animate-fade-in"
+               style={{
+                 background: lastScanStatus.status === 'success' ? "rgba(16, 185, 129, 0.12)" : lastScanStatus.status === 'duplicate' ? "rgba(245, 158, 11, 0.12)" : "rgba(239, 68, 68, 0.12)",
+                 borderColor: lastScanStatus.status === 'success' ? "rgba(16, 185, 129, 0.3)" : lastScanStatus.status === 'duplicate' ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)"
+               }}>
+            <span className="material-symbols-outlined text-2xl shrink-0" style={{ color: lastScanStatus.status === 'success' ? "var(--success)" : lastScanStatus.status === 'duplicate' ? "var(--warning)" : "var(--error)" }}>
+              {lastScanStatus.status === 'success' ? "check_circle" : lastScanStatus.status === 'duplicate' ? "error" : "help"}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Hasil Scan Terakhir</p>
+              <p className="font-bold text-sm truncate text-white">{lastScanStatus.name || "Peserta tidak ditemukan"}</p>
+              <p className="text-xs text-gray-400">
+                {lastScanStatus.message} • {lastScanStatus.time}
+              </p>
             </div>
           </div>
+        )}
 
-          <button onClick={backToReady} className="rounded-lg border px-6 py-2 mt-4" style={{ borderColor: "var(--outline-variant)" }}>Batal</button>
+        {/* Standby & Manual Controls */}
+        <div className="w-full max-w-lg flex flex-col gap-4">
+          <div className="flex">
+            <input
+              value={manual}
+              onChange={(e) => setManual(e.target.value)}
+              placeholder="Ketik nama atau token..."
+              className="bd-input flex-1 rounded-l-xl rounded-r-none p-3 text-center font-mono border-r-0 focus:z-10"
+            />
+            <button
+              onClick={submitManual}
+              className="rounded-r-xl rounded-l-none px-6 font-bold transition-all hover:brightness-110 active:scale-95"
+              style={{ background: "var(--brand-gradient)", color: "var(--on-green)" }}
+            >
+              Check-in
+            </button>
+          </div>
         </div>
-      );
-    }
+
+        <button 
+          onClick={backToReady} 
+          className="rounded-lg border px-6 py-2 mt-6 text-sm hover:bg-white/5 transition-colors" 
+          style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface-variant)" }}
+        >
+          ✕ Batal & Keluar Scan
+        </button>
+
+        {/* Active Toast Notification */}
+        {activeToast && autoScan && (
+          <div
+            className="animate-toast"
+            style={{ ...activeToast.style, display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: '20px', fontVariationSettings: "'FILL' 1", flexShrink: 0 }}
+            >
+              {activeToast.type === 'VERIFIED' ? 'check_circle' : activeToast.type === 'DUPLICATE' ? 'error' : 'help'}
+            </span>
+            {activeToast.message}
+          </div>
+        )}
+
+        <style jsx>{`
+          :global(#qr-reader) {
+            border: none !important;
+            padding: 0 !important;
+            background: transparent !important;
+          }
+          :global(#qr-reader video) {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+          }
+          :global(#qr-reader img) {
+            display: none !important;
+          }
+          :global(#qr-reader a) {
+            display: none !important;
+          }
+          :global(#qr-reader__dashboard_section) {
+            display: none !important;
+          }
+          :global(#qr-reader__status_span) {
+            display: none !important;
+          }
+          .flash-green {
+            animation: green-border-flash 0.3s ease-out forwards;
+          }
+          @keyframes green-border-flash {
+            0% { border-color: transparent; }
+            50% { border-color: rgba(91,255,161,0.7); }
+            100% { border-color: transparent; }
+          }
+          @keyframes flash-cooldown {
+            0% { border-color: transparent; }
+            50% { border-color: rgba(255,255,255,0.7); }
+            100% { border-color: transparent; }
+          }
+          @keyframes toast-fade-in-out {
+            0% { opacity: 0; }
+            16.6% { opacity: 1; }
+            83.3% { opacity: 1; }
+            100% { opacity: 0; }
+          }
+          .animate-toast {
+            animation: toast-fade-in-out 1.2s ease-in-out forwards;
+          }
+        `}</style>
+      </div>
+    );
   }
 
   // ===== VERIFIED (dark + neon hijau) =====
@@ -703,7 +802,20 @@ export default function ScanPage() {
 
   // ready
   return (
-    <div className="bd flex min-h-screen flex-col px-4 pt-6">
+    <div className="bd flex min-h-screen flex-col px-4 pt-8">
+      {/* Branding/Header */}
+      <div className="mx-auto w-full max-w-md mb-6 flex items-center justify-between border-b pb-4" style={{ borderColor: "var(--outline-variant)" }}>
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Regesit" className="h-8 w-8 object-contain" />
+          <div className="min-w-0">
+            <span className="font-bold text-base text-white block">Regesit Scanner</span>
+            {eventName && <p className="text-xs text-gray-400 truncate max-w-[200px]" title={eventName}>{eventName}</p>}
+          </div>
+        </div>
+        <LiveClock />
+      </div>
+
       <div className="mx-auto mb-8 w-full max-w-md rounded-lg py-3 text-center text-sm font-medium" style={{ background: "var(--surface-container)" }}>
         {syncQueue.length > 0 ? (
           <span style={{ color: "var(--warning)" }} className="flex items-center justify-center gap-2">
@@ -734,27 +846,36 @@ export default function ScanPage() {
         />
       </div>
 
-      {fetchErr && <p className="mx-auto mb-4 max-w-md text-sm" style={{ color: "var(--green)" }}>{fetchErr}</p>}
+      {fetchErr && <p className="mx-auto mb-4 max-w-md text-sm text-center" style={{ color: "var(--green)" }}>{fetchErr}</p>}
 
       {cameraError ? (
         <div className="mx-auto mb-6 w-full max-w-md rounded-lg border p-4 text-sm" style={{ borderColor: "var(--error)", color: "var(--error)" }}>
           IZIN KAMERA DIBLOKIR / kamera tidak tersedia. Gunakan input manual di bawah.
         </div>
       ) : (
-        <button onClick={() => setUi("scanning")} className="glass mx-auto flex h-80 w-80 flex-col items-center justify-center gap-5 rounded-3xl transition-transform hover:scale-105 active:scale-95">
+        <button onClick={() => setUi("scanning")} className="glass mx-auto flex h-80 w-80 flex-col items-center justify-center gap-5 rounded-3xl transition-transform hover:scale-105 active:scale-95 shadow-lg">
           <span className="material-symbols-outlined text-8xl" style={{ color: "var(--primary)" }}>photo_camera</span>
-          <span className="text-2xl font-bold tracking-widest">TAP TO SCAN</span>
+          <span className="text-2xl font-bold tracking-widest bg-brand-gradient bg-clip-text text-transparent">TAP TO SCAN</span>
         </button>
       )}
 
-      {!autoScan && ( // Only show manual input in normal mode
-        <div className="mx-auto mt-auto mb-12 w-full max-w-md">
-          <div className="flex gap-2">
-            <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Manual 6-digit token..." className="bd-input flex-1 rounded-lg p-4 text-center font-mono uppercase" />
-            <button onClick={submitManual} className="rounded-lg px-5 font-bold" style={{ background: "var(--primary-container)", color: "var(--on-primary-container)" }}>Cek</button>
-          </div>
+      <div className="mx-auto mt-auto mb-12 w-full max-w-md">
+        <div className="flex">
+          <input
+            value={manual}
+            onChange={(e) => setManual(e.target.value)}
+            placeholder="Manual 6-digit token/nama..."
+            className="bd-input flex-1 rounded-l-xl rounded-r-none p-4 text-center font-mono uppercase border-r-0 focus:z-10"
+          />
+          <button
+            onClick={submitManual}
+            className="rounded-r-xl rounded-l-none px-6 font-bold transition-all hover:brightness-110 active:scale-95"
+            style={{ background: "var(--brand-gradient)", color: "var(--on-green)" }}
+          >
+            Cek
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

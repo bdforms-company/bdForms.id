@@ -1,11 +1,12 @@
 -- ============================================================
--- bdForms — Executable DB Schema (paste di Supabase SQL Editor)
+-- Regesit — Executable DB Schema (paste di Supabase SQL Editor)
 -- ============================================================
 
 -- Table 1: events
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  description text,
   created_at timestamptz default now()
 );
 
@@ -111,3 +112,5 @@ as $$
   where p.qr_token = any(tokens)
   returning p.qr_token, p.is_checked_in, p.check_in_time;
 $$;
+
+grant execute on function public.batch_check_in(text[]) to anon, authenticated, service_role;

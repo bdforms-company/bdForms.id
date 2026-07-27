@@ -1,4 +1,4 @@
-/* ── bdForms Design System v2 — Blue Gradient Theme ── */
+/* ── Regesit Design System v2 — Blue Gradient Theme ── */
 
 html {
   scroll-behavior: smooth;
@@ -6,43 +6,53 @@ html {
 }
 
 :root {
-  /* Brand colors (refined, less saturated, more professional) */
-  --brand-blue: #0055FF;
-  --brand-cyan: #00B2FF;
-  --brand-gradient: linear-gradient(135deg, #0055FF, #00B2FF);
+  /* Brand colors (#0066FF → #00C8FF) */
+  --brand-blue: #0066FF;
+  --brand-cyan: #00C8FF;
+  --brand-gradient: linear-gradient(135deg, #0066FF, #00C8FF);
 
   /* Light mode (default - Editorial slate & soft off-white) */
   --background: #FAFAFC;
   --surface: #FFFFFF;
+  --surface-container-low: #F7F8FC;
   --surface-container: #F1F4FA;
+  --surface-container-high: #E8EDF6;
   --on-background: #090E1A;
   --on-surface: #1E293B;
   --on-surface-variant: #64748B;
-  --primary: #0055FF;
-  --primary-container: #EDF3FF;
+  --primary: #0066FF;
+  --primary-container: #EEF3FF;
   --on-primary: #FFFFFF;
-  --on-primary-container: #003FB3;
+  --on-primary-container: #004EBD;
   --outline: #E2E8F0;
   --outline-variant: #F1F5F9;
   --error: #E11D48;
+  --on-error: #FFFFFF;
   --success: #10B981;
   --warning: #F59E0B;
 
   /* Accent */
-  --accent: #0055FF;
-  --accent-secondary: #00B2FF;
+  --accent: #0066FF;
+  --accent-secondary: #00C8FF;
+
+  /* Legacy aliases — primary actions historically used --green */
+  --green: #0066FF;
+  --on-green: #FFFFFF;
+  --cyan: #00C8FF;
 
   /* Shadows (Softer, modern elevation) */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 85, 255, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 85, 255, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 85, 255, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 6px -1px rgba(0, 102, 255, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 102, 255, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 102, 255, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
 }
 
 [data-theme="dark"] {
   --background: #06080F;
   --surface: #0B0E17;
+  --surface-container-low: #0A0D16;
   --surface-container: #111625;
+  --surface-container-high: #1A2033;
   --on-background: #F8FAFC;
   --on-surface: #E2E8F0;
   --on-surface-variant: #94A3B8;
@@ -53,10 +63,14 @@ html {
   --outline: #1E293B;
   --outline-variant: #0F172A;
   --error: #F87171;
+  --on-error: #0B0E17;
   --success: #34D399;
   --warning: #FBBF24;
   --accent: #3B82F6;
   --accent-secondary: #38BDF8;
+  --green: #3B82F6;
+  --on-green: #FFFFFF;
+  --cyan: #38BDF8;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);

@@ -7,7 +7,84 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { CustomField, FieldConfig } from "@/lib/types";
 import { DEFAULT_FIELD_CONFIG, PRESET_FIELDS, parseFieldConfig } from "@/lib/types";
+import { utils, writeFile } from "xlsx";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 import "../../../design.css";
+
+const exportXLSX = (participants: Participant[], ev: Ev) => {
+  const columns = buildExportColumns(participants, ev.field_config) as { header: string, accessor: (p: Participant, index?: number) => string }[];
+  const data = participants.map((p, index) => {
+    const row: any = {};
+    columns.forEach((col: any) => {
+      row[col.header] = col.accessor(p, index);
+    });
+    return row;
+  });
+  const ws = utils.json_to_sheet(data);
+  const wb = utils.book_new();
+  utils.book_append_sheet(wb, ws, "Peserta");
+  const eventName = ev.name.replace(/[^a-zA-Z0-9]/gi, '_').toLowerCase();
+  writeFile(wb, `${eventName}_data.xlsx`);
+};
+
+const exportPDF = (participants: Participant[], ev: Ev) => {
+  const doc = new jsPDF();
+  const columns = buildExportColumns(participants, ev.field_config) as { header: string, accessor: (p: Participant, index?: number) => string }[];
+  const tableData = participants.map((p, index) => columns.map((col: any) => col.accessor(p, index)));
+  (doc as any).autoTable({
+    head: [columns.map((c: any) => c.header)],
+    body: tableData,
+  });
+  const eventName = ev.name.replace(/[^a-zA-Z0-9]/gi, '_').toLowerCase();
+  doc.save(`${eventName}_data.pdf`);
+};
+
+const buildExportColumns = (participants: Participant[], fieldConfig: FieldConfig) => {
+  const columns: { header: string; accessor: (p: Participant, index?: number) => string; }[] = [
+    { header: "No", accessor: (_, index) => (index !== undefined ? index + 1 : "").toString() },
+    { header: "Nama Lengkap", accessor: (p) => p.name ?? "" },
+    { header: "Email", accessor: (p) => p.email ?? "" },
+  ];
+
+  const presetFieldLabels: { [key: string]: string } = {
+    phone: "No. HP",
+    institution: "Instansi / Lembaga / Komunitas / Startup",
+    position: "Jabatan / Posisi",
+    idNumber: "NIP / NIM / ID",
+  };
+
+  // Add enabled preset fields in order
+  PRESET_FIELDS.forEach(field => {
+    if (fieldConfig[field.key]?.enabled) {
+      columns.push({
+        header: presetFieldLabels[field.key] || field.label,
+        accessor: (p) => {
+          const extraData = p.extra_data ?? {};
+          return extraData[field.key] ?? "";
+        }
+      });
+    }
+  });
+
+  // Add custom questions
+  fieldConfig.customQuestions.forEach(q => {
+    columns.push({
+      header: q.label,
+      accessor: (p) => {
+        const customData = p.custom_data ?? {};
+        return customData[q.id] ?? "";
+      }
+    });
+  });
+
+  columns.push(
+    { header: "Status Kehadiran", accessor: (p) => p.is_checked_in ? "Hadir" : "Belum Hadir" },
+    { header: "Waktu Check-in", accessor: (p) => p.check_in_time ? new Date(p.check_in_time).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB' : "-" }
+  );
+
+  return columns;
+};
 
 type Participant = {
   id: string;
@@ -89,7 +166,7 @@ function ManageEventInner() {
   const [closing, setClosing] = useState(false);
   const [generatingToken, setGeneratingToken] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [origin, setOrigin] = useState("https://www.bdforms.id");
+  const [origin, setOrigin] = useState("https://www.regesit.com");
 
   const [editingSlug, setEditingSlug] = useState(false);
   const [slugInput, setSlugInput] = useState("");
@@ -537,7 +614,7 @@ function ManageEventInner() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="glass w-full max-w-2xl rounded-2xl p-8 text-center">
             <span className="material-symbols-outlined mb-4 text-6xl" style={{ color: "rgba(255,191,0,0.9)" }}>schedule</span>
-            <p className="mb-4 text-2xl font-bold">⏳ Event ini menunggu konfirmasi pembayaran dari tim bdForms</p>
+            <p className="mb-4 text-2xl font-bold">⏳ Event ini menunggu konfirmasi pembayaran dari tim Regesit</p>
             <p className="mb-8 text-base" style={{ color: "var(--on-surface-variant)" }}>
               Detail event sudah tersimpan. Semua fitur akan aktif setelah pembayaran dikonfirmasi. Hubungi kami jika butuh bantuan.
             </p>
@@ -546,13 +623,13 @@ function ManageEventInner() {
                 ← Kembali ke Dashboard
               </Link>
               <a
-                href="https://wa.me/6285199527012?text=Halo%20bdForms%2C%20saya%20ingin%20konfirmasi%20pembayaran%20untuk%20event%20saya"
+                href="https://wa.me/6285199527012?text=Halo%20Regesit%2C%20saya%20ingin%20konfirmasi%20pembayaran%20untuk%20event%20saya"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-xl px-6 py-3 font-bold"
                 style={{ background: "var(--green)", color: "var(--on-green)" }}
               >
-                Hubungi bdForms via WhatsApp
+                Hubungi Regesit via WhatsApp
               </a>
             </div>
           </div>
@@ -660,7 +737,7 @@ function ManageEventInner() {
               <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
                 <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>URL Pendek Event</label>
                 <div className="flex items-center gap-2">
-                  <span className="shrink-0 text-sm" style={{ color: "var(--on-surface-variant)" }}>bdforms.id/e/</span>
+                  <span className="shrink-0 text-sm" style={{ color: "var(--on-surface-variant)" }}>regesit.com/e/</span>
                   <input
                     value={slugInput}
                     onChange={(e) => { setSlugInput(e.target.value.toLowerCase().replace(/\s+/g, "-")); setSlugSaveError(null); }}
@@ -692,11 +769,11 @@ function ManageEventInner() {
 
             <div className="flex items-center justify-between gap-3 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
               <code className="truncate text-sm">
-                {ev.slug ? `bdforms.id/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`}
+                {ev.slug ? `regesit.com/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`}
               </code>
               <button
                 onClick={() => {
-                  const link = ev.slug ? `https://bdforms.id/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`;
+                  const link = ev.slug ? `https://regesit.com/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`;
                   navigator.clipboard?.writeText(link);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 1500);
@@ -733,10 +810,10 @@ function ManageEventInner() {
               <h2 className="mb-2 text-lg font-bold">Materi Pre-Event</h2>
               <p className="mb-4 text-sm" style={{ color: "var(--on-surface-variant)" }}>Link materi yang bisa dibagikan ke peserta</p>
               <div className="flex items-center justify-between gap-3 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
-                <code className="truncate text-sm">bdforms.id/doc/{ev.doc_slug}</code>
+                <code className="truncate text-sm">regesit.com/doc/{ev.doc_slug}</code>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
-                    onClick={() => { navigator.clipboard?.writeText(`https://bdforms.id/doc/${ev.doc_slug}`); setCopiedDoc(true); setTimeout(() => setCopiedDoc(false), 1500); }}
+                    onClick={() => { navigator.clipboard?.writeText(`https://regesit.com/doc/${ev.doc_slug}`); setCopiedDoc(true); setTimeout(() => setCopiedDoc(false), 1500); }}
                     className="rounded-lg p-2 hover:bg-white/10"
                     title="Salin"
                   >
@@ -1291,7 +1368,7 @@ function EditEventModal({
                 })}
               </div>
               <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--outline-variant)" }}>
-                <div className="mb-3 flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Pertanyaan Custom (max 2)</p>{!fieldConfigLocked && editFieldConfig.customQuestions.length < 2 && <button type="button" onClick={() => setEditFieldConfig({ ...editFieldConfig, customQuestions: [...editFieldConfig.customQuestions, { id: crypto.randomUUID(), label: "", required: false }] })} className="rounded-lg border px-3 py-1 text-xs" style={{ borderColor: "var(--outline-variant)" }}>+ Tambah</button>}</div>
+                <div className="mb-3 flex items-center justify-between"><p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Pertanyaan Custom (max 2)</p>                {!fieldConfigLocked && editFieldConfig.customQuestions.length < 2 && <button type="button" onClick={() => setEditFieldConfig({ ...editFieldConfig, customQuestions: [...editFieldConfig.customQuestions, { id: crypto.randomUUID(), label: "", required: false, type: 'text' }] })} className="rounded-lg border px-3 py-1 text-xs" style={{ borderColor: "var(--outline-variant)" }}>+ Tambah</button>}</div>
                 {editFieldConfig.customQuestions.map((q, qi) => <div key={q.id} className="mb-2 flex items-center gap-2"><input disabled={fieldConfigLocked} value={q.label} onChange={(e)=>{const customQuestions=[...editFieldConfig.customQuestions];customQuestions[qi]={...q,label:e.target.value};setEditFieldConfig({...editFieldConfig,customQuestions});}} placeholder="Tulis pertanyaan..." className="bd-input flex-1 rounded-lg px-3 py-2 text-sm disabled:opacity-60"/><button type="button" disabled={fieldConfigLocked} onClick={()=>{const customQuestions=[...editFieldConfig.customQuestions];customQuestions[qi]={...q,required:!q.required};setEditFieldConfig({...editFieldConfig,customQuestions});}} className="relative inline-flex h-6 w-11 rounded-full disabled:opacity-40" style={{ background: q.required ? "var(--green)" : "#1e2a2c" }}><span className="h-[18px] w-[18px] rounded-full bg-white transition-transform" style={{ transform: q.required ? "translate(23px, 3px)" : "translate(3px, 3px)" }} /></button><button type="button" disabled={fieldConfigLocked} onClick={()=>setEditFieldConfig({...editFieldConfig,customQuestions:editFieldConfig.customQuestions.filter((_,i)=>i!==qi)})} className="rounded-lg p-2 disabled:opacity-40"><span className="material-symbols-outlined text-base" style={{color:"var(--error)"}}>delete</span></button></div>)}
               </div>
             </div>
