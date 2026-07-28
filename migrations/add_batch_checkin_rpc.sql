@@ -1,6 +1,4 @@
 -- Create batch check-in function to handle high throughput offline-sync reconciliation
--- Apply in Supabase SQL Editor if missing (sync falls back to /api/check-in + direct update).
-
 create or replace function public.batch_check_in(tokens text[])
 returns table (
   qr_token text,
@@ -18,8 +16,3 @@ as $$
   where p.qr_token = any(tokens)
   returning p.qr_token, p.is_checked_in, p.check_in_time;
 $$;
-
--- Allow scanner clients (anon + authenticated) to call the RPC
-grant execute on function public.batch_check_in(text[]) to anon, authenticated, service_role;
-
-notify pgrst, 'reload schema';

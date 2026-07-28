@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
 const ALLOWED_ORIGINS = [
-  "https://www.regesit.com",
-  "https://regesit.com",
+  "https://www.bdforms.id",
+  "https://bdforms.id",
   ...(process.env.NODE_ENV === "development" ? ["http://localhost:3000"] : []),
 ];
 
@@ -30,7 +30,7 @@ function isRateLimited(request: Request): boolean {
   return false;
 }
 
-const FALLBACK_SENDER = "Regesit <onboarding@resend.dev>";
+const FALLBACK_SENDER = "bdForms <onboarding@resend.dev>";
 
 function getResendFrom(): string {
   const name = process.env.RESEND_SENDER_NAME;
@@ -142,7 +142,7 @@ function buildEmailHtml(
             <td style="padding: 32px; background-color: #0f1212; border: 1px solid #1e2a2c; border-radius: 16px;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="font-family: ${fontFamily}; font-size: 18px; font-weight: bold; color: #5bffa1; vertical-align: middle;">&#11041; Regesit</td>
+                  <td style="font-family: ${fontFamily}; font-size: 18px; font-weight: bold; color: #5bffa1; vertical-align: middle;">&#11041; bdForms</td>
                   <td align="right" style="font-family: ${fontFamily}; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #5bffa1; vertical-align: middle;">EVENT DIBUAT</td>
                 </tr>
               </table>
@@ -191,12 +191,12 @@ function buildEmailHtml(
           <!-- Footer -->
           <tr>
             <td style="padding: 32px 0 0 0; border-top: 1px solid #1e2a2c; text-align: center;">
-              <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 14px; font-weight: bold; color: #5bffa1;">&#11041; Regesit</p>
-              <p style="margin: 0 0 8px 0; font-family: ${fontFamily}; font-size: 12px; line-height: 1.5; color: #8a9299;">Powered by Regesit &mdash; Fast-Track Event Registration</p>
+              <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 14px; font-weight: bold; color: #5bffa1;">&#11041; bdForms</p>
+              <p style="margin: 0 0 8px 0; font-family: ${fontFamily}; font-size: 12px; line-height: 1.5; color: #8a9299;">Powered by bdForms &mdash; Fast-Track Event Registration</p>
               <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 12px; line-height: 1.5;">
-                <a href="https://regesit.com" style="color: #5bffa1; text-decoration: none;">regesit.com</a>
+                <a href="https://bdforms.id" style="color: #5bffa1; text-decoration: none;">bdforms.id</a>
               </p>
-              <p style="margin: 0; font-family: ${fontFamily}; font-size: 11px; line-height: 1.5; color: #8a9299;">&copy; 2026 Regesit. Built for speed.</p>
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 11px; line-height: 1.5; color: #8a9299;">&copy; 2026 bdForms. Built for speed.</p>
             </td>
           </tr>
 
@@ -227,7 +227,7 @@ export async function POST(request: Request) {
     const { error } = await resend.emails.send({
       from: getResendFrom(),
       to: email,
-      subject: `Link Event "${eventName}" — Regesit`,
+      subject: `Link Event "${eventName}" — bdForms`,
       html: buildEmailHtml(eventName, regLink, scanLink, dashLink),
     });
 

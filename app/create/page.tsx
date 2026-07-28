@@ -11,7 +11,7 @@ import { DEFAULT_FIELD_CONFIG, PRESET_FIELDS } from "@/lib/types";
 import { getPackageById } from "@/lib/packages";
 import "../design.css";
 
-const SITE = "regesit.com";
+const SITE = "bdforms.id";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -71,7 +71,6 @@ function CreateEventContent() {
   const [eventEnd, setEventEnd] = useState("");
   const [regDeadline, setRegDeadline] = useState("");
   const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
   const [compressingBanner, setCompressingBanner] = useState(false);
@@ -165,30 +164,29 @@ function CreateEventContent() {
         bannerUrl = urlData.publicUrl;
         setUploadingBanner(false);
       }
-        const { data: { session } } = await supabase.auth.getSession();
-        const pkgStatus = statusParam === "pending_payment" ? "pending_payment" : (packageParam === "starter" ? "active" : "pending_payment");
-        const { error: insertError } = await supabase.from("events").insert({
-          id: newEventId,
-          name: name.trim(),
-          event_date: eventStart ? new Date(eventStart).toISOString() : null,
-          event_end: eventEnd ? new Date(eventEnd).toISOString() : null,
-          registration_deadline: regDeadline ? new Date(regDeadline).toISOString() : null,
-          location: location.trim() || null,
-          expected_participants: selectedPackage?.maxParticipants ?? null,
-          ...(bannerUrl ? { banner_url: bannerUrl } : {}),
-          field_config: fieldConfig,
-          package_type: packageParam,
-          package_status: pkgStatus,
-          owner_id: session?.user?.id,
-          ...(slug ? { slug } : {}),
-          ...(waGroupUrl ? { whatsapp_group_url: waGroupUrl } : {}),
-          tos_enabled: tosEnabled,
-          ...(tosEnabled && tosText ? { tos_text: tosText } : {}),
-          ...(docEnabled && docSlug ? { doc_slug: docSlug } : {}),
-          ...(docEnabled && docUrl ? { doc_url: docUrl } : {}),
-          email_required: emailRequired,
-          ...(description ? { description: description.trim() } : {}),
-        });
+      const { data: { session } } = await supabase.auth.getSession();
+      const pkgStatus = statusParam === "pending_payment" ? "pending_payment" : (packageParam === "starter" ? "active" : "pending_payment");
+      const { error: insertError } = await supabase.from("events").insert({
+        id: newEventId,
+        name: name.trim(),
+        event_date: eventStart || null,
+        event_end: eventEnd || null,
+        registration_deadline: regDeadline ? new Date(regDeadline).toISOString() : null,
+        location: location.trim() || null,
+        expected_participants: selectedPackage?.maxParticipants ?? null,
+        ...(bannerUrl ? { banner_url: bannerUrl } : {}),
+        field_config: fieldConfig,
+        package_type: packageParam,
+        package_status: pkgStatus,
+        owner_id: session?.user?.id ?? null,
+        ...(slug ? { slug } : {}),
+        ...(waGroupUrl ? { whatsapp_group_url: waGroupUrl } : {}),
+        tos_enabled: tosEnabled,
+        ...(tosEnabled && tosText ? { tos_text: tosText } : {}),
+        ...(docEnabled && docSlug ? { doc_slug: docSlug } : {}),
+        ...(docEnabled && docUrl ? { doc_url: docUrl } : {}),
+        email_required: emailRequired,
+      });
       if (insertError) {
         if (insertError.code === "23505") {
           setSlugError("URL ini sudah dipakai. Coba yang lain.");
@@ -287,23 +285,6 @@ function CreateEventContent() {
               </p>
             </div>
 
-            {/* Description */}
-            <div>
-              <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Deskripsi Event (opsional)</label>
-              <textarea
-                value={description}
-                onChange={(e) => {
-                  if (e.target.value.length <= 500) setDescription(e.target.value);
-                }}
-                placeholder="Tambahkan deskripsi singkat tentang event ini..."
-                className="bd-input w-full rounded-lg px-4 py-3 text-sm"
-                rows={4}
-              />
-              <p className="mt-1 text-right text-[10px]" style={{ color: "var(--on-surface-variant)" }}>
-                {description.length}/500 karakter
-              </p>
-            </div>
-
             {/* Deadline */}
             <div>
               <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>Deadline Pendaftaran <span style={{ color: "var(--error)" }}>*</span></label>
@@ -394,18 +375,9 @@ function CreateEventContent() {
                         Pertanyaan Custom (maks. {selectedPackage?.id === "starter" ? 1 : selectedPackage?.id === "standard" ? 3 : 10})
                       </p>
                     </div>
-                      {fieldConfig.customQuestions.map((q, qi) => (
+                    {fieldConfig.customQuestions.map((q, qi) => (
                       <div key={q.id} className="flex items-center gap-3 px-4 py-3" style={{ background: "var(--surface-low)" }}>
                         <input type="text" value={q.label} onChange={(e) => { const updated = [...fieldConfig.customQuestions]; updated[qi] = { ...q, label: e.target.value }; setFieldConfig({ ...fieldConfig, customQuestions: updated }); }} placeholder="Tulis pertanyaan..." className="bd-input flex-1 rounded-lg px-3 py-2 text-sm" />
-                        <select value={q.type} onChange={(e) => { const updated = [...fieldConfig.customQuestions]; updated[qi] = { ...q, type: e.target.value as any }; setFieldConfig({ ...fieldConfig, customQuestions: updated }); }} className="bd-input rounded-lg px-2 py-2 text-sm">
-                          <option value="text">Teks</option>
-                          <option value="email">Email</option>
-                          <option value="phone">No. HP</option>
-                          <option value="number">Angka</option>
-                          <option value="textarea">Area Teks</option>
-                          <option value="select">Pilihan</option>
-                          <option value="file">File/Foto</option>
-                        </select>
                         <div className="flex flex-col items-center gap-1">
                           <Toggle checked={q.required} onChange={(v) => { const updated = [...fieldConfig.customQuestions]; updated[qi] = { ...q, required: v }; setFieldConfig({ ...fieldConfig, customQuestions: updated }); }} />
                           <span className="text-[9px] uppercase tracking-wider" style={{ color: "var(--on-surface-variant)" }}>Wajib</span>
@@ -417,7 +389,7 @@ function CreateEventContent() {
                       <div className="px-4 py-3">
                         <button
                           type="button"
-                          onClick={() => setFieldConfig({ ...fieldConfig, customQuestions: [...fieldConfig.customQuestions, { id: crypto.randomUUID(), label: "", required: false, type: "text" }] })}
+                          onClick={() => setFieldConfig({ ...fieldConfig, customQuestions: [...fieldConfig.customQuestions, { id: crypto.randomUUID(), label: "", required: false }] })}
                           className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-white/5"
                           style={{ borderColor: "var(--outline-variant)", color: "var(--on-surface-variant)" }}
                         >

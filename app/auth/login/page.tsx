@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import LoginClient from "./LoginClient";
 
 export const metadata: Metadata = {
-  title: "Masuk — Regesit",
-  description: "Masuk ke akun Regesit untuk mengelola event kamu.",
+  title: "Masuk — bdForms",
+  description: "Masuk ke akun bdForms untuk mengelola event kamu.",
   robots: { index: false },
 };
 

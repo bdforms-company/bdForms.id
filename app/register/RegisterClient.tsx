@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import html2canvas from "html2canvas-pro";
-import imageCompression from "browser-image-compression";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "@/lib/supabase";
 import type { CustomField, FieldConfig } from "@/lib/types";
@@ -39,17 +38,32 @@ export default function RegisterClient() {
   const [showSignupBanner, setShowSignupBanner] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [whatsappGroupUrl, setWhatsappGroupUrl] = useState<string | null>(null);
-  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
   const [tosEnabled, setTosEnabled] = useState(false);
   const [tosText, setTosText] = useState("");
   const [tosExpanded, setTosExpanded] = useState(false);
   const [tosChecked, setTosChecked] = useState(false);
   const [emailRequired, setEmailRequired] = useState(false);
   const [eventNotFound, setEventNotFound] = useState(false);
-  const [description, setDescription] = useState<string | null>(null);
   const [pendingPayment, setPendingPayment] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [hasDownloadedQR, setHasDownloadedQR] = useState(false);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const emailSentRef = useRef(false);
   const autoDownloadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!result) {
+      setQrImageUrl(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const canvas = document.querySelector("#modal-qr-container canvas") as HTMLCanvasElement | null;
+      if (canvas) {
+        setQrImageUrl(canvas.toDataURL("image/png"));
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [result]);
 
   useEffect(() => {
     setEventId(new URLSearchParams(window.location.search).get("eventId"));
@@ -77,7 +91,7 @@ export default function RegisterClient() {
     let active = true;
     supabase
       .from("events")
-      .select("name, banner_url, description, event_date, registration_deadline, custom_fields, field_config, whatsapp_group_url, tos_enabled, tos_text, email_required, status, package_status")
+      .select("name, banner_url, event_date, registration_deadline, custom_fields, field_config, whatsapp_group_url, tos_enabled, tos_text, email_required, status, package_status")
       .eq("id", eventId)
       .single()
       .then(({ data }) => {
@@ -101,7 +115,6 @@ export default function RegisterClient() {
 
         if (data.banner_url) setBannerUrl(data.banner_url);
         if (data.name) setEventName(data.name);
-        if (data.description) setDescription(data.description);
         const fields = Array.isArray(data.custom_fields) ? (data.custom_fields as CustomField[]) : [];
         setCustomFields(fields);
         setFieldConfig(parseFieldConfig(data.field_config));
@@ -191,6 +204,24 @@ export default function RegisterClient() {
     link.click();
   };
 
+  const downloadModalQR = () => {
+    try {
+      const canvas = document.querySelector("#modal-qr-container canvas") as HTMLCanvasElement | null;
+      const dataUrl = canvas ? canvas.toDataURL("image/png") : qrImageUrl;
+      if (!dataUrl || !result) {
+        throw new Error("QR Code image is not ready yet.");
+      }
+      const safeName = result.name.trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "_") || "peserta";
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `Tiket_QR_${safeName}.png`;
+      link.click();
+      setHasDownloadedQR(true);
+    } catch (err) {
+      console.error("Gagal mengunduh QR:", err);
+      alert("Gagal mengunduh tiket secara otomatis. Silakan tekan lama gambar QR di atas untuk menyimpannya secara manual.");
+    }
+  };
 
   useEffect(() => {
     if (!result || autoDownloadedRef.current) return;
@@ -273,9 +304,7 @@ export default function RegisterClient() {
       }
 
       setResult(participant);
-      if (whatsappGroupUrl) {
-        setShowWhatsappModal(true);
-      }
+      setModalOpen(true);
     } catch (e) {
       console.error("Register error:", e);
       Sentry.captureException(e, {
@@ -385,6 +414,58 @@ export default function RegisterClient() {
 
   return (
     <div className="bd flex min-h-screen flex-col">
+      {modalOpen && result && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
+          <div className="glass w-full max-w-md rounded-3xl p-8 text-center border" style={{ borderColor: "rgba(255, 255, 255, 0.15)" }}>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10">
+              <span className="material-symbols-outlined text-4xl text-blue-500">qr_code_2</span>
+            </div>
+            <h2 className="mb-2 text-2xl font-bold text-white">Tiket QR Anda Sudah Siap!</h2>
+            <p className="mb-6 text-sm text-gray-300">
+              Silakan unduh tiket QR di bawah ini sekarang. Anda **wajib** menyimpannya di galeri HP untuk ditunjukkan saat check-in di lokasi acara (D-Day).
+            </p>
+
+            {/* QR Code Container */}
+            <div className="mx-auto mb-6 inline-block bg-white p-4 rounded-2xl shadow-lg" id="modal-qr-container">
+              {qrImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={qrImageUrl} alt="QR Code" width={220} height={220} className="mx-auto" />
+              ) : (
+                <QRCodeCanvas value={result.qr_token} size={220} />
+              )}
+            </div>
+
+            <p className="mb-2 text-lg font-bold text-white">{result.name}</p>
+            <p className="mb-6 text-xs text-gray-400 font-mono tracking-wider">
+              TOKEN: {result.qr_token.slice(-6).toUpperCase()}
+            </p>
+
+            {/* Action Button */}
+            <button
+              onClick={downloadModalQR}
+              className="w-full rounded-xl py-4 font-bold transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+              style={{ background: "var(--primary)", color: "var(--on-primary)" }}
+            >
+              <span className="material-symbols-outlined">download</span>
+              Download Tiket QR
+            </button>
+
+            <p className="mt-3 text-xs text-gray-400">
+              💡 Tips: Jika tombol unduh tidak berfungsi di HP Anda, Anda dapat menekan lama gambar QR di atas lalu pilih &quot;Simpan Gambar&quot;.
+            </p>
+
+            {/* Exit button, only visible after downloading */}
+            {hasDownloadedQR && (
+              <button
+                onClick={() => setModalOpen(false)}
+                className="w-full mt-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Tutup & Lihat Ringkasan
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes slideUpBar {
           from { transform: translateY(100%); }
@@ -407,55 +488,44 @@ export default function RegisterClient() {
                   maxWidth: 320,
                   padding: 32,
                   paddingBottom: 0,
-                  borderRadius: 20,
+                  borderRadius: 16,
                   backgroundColor: "#FFFFFF",
                   color: "#0A0F1E",
                   margin: "0 auto 24px",
                   textAlign: "center",
                   boxSizing: "border-box",
                   fontFamily: "system-ui, sans-serif",
-                  border: "1px solid #E2E8F0",
-                  boxShadow: "0 10px 30px rgba(0, 102, 255, 0.1)",
+                  border: "2px solid #0066FF",
+                  boxShadow: "0 4px 24px rgba(0,102,255,0.15)",
                   overflow: "hidden",
                 }}
               >
-                {/* Brand gradient top bar */}
-                <div style={{ height: 6, background: "linear-gradient(135deg, #0066FF, #00C8FF)", margin: "-32px -32px 24px" }} />
-                
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/logo.png" alt="Regesit" width={32} height={32} style={{ objectFit: "contain" }} />
-                  <span style={{ color: "#0066FF", fontWeight: "bold", fontSize: 16 }}>Regesit</span>
+                  <img src="/logo.png" alt="bdForms" width={32} height={32} style={{ objectFit: "contain" }} />
+                  <span style={{ color: "#0066FF", fontWeight: "bold", fontSize: 16 }}>bdForms</span>
                 </div>
                 <p style={{ fontSize: 11, color: "#5A6580", textTransform: "uppercase", letterSpacing: 1.5, margin: "0 0 16px", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {eventName || "Event"}
                 </p>
                 <div style={{ height: 1, backgroundColor: "#E0E8FF", marginBottom: 24 }} />
-                
-                {/* Brand framed QR Code Container */}
-                <div style={{ display: "inline-block", backgroundColor: "#ffffff", padding: "12px", borderRadius: 16, border: "2px solid #0066FF", boxShadow: "0 4px 12px rgba(0, 102, 255, 0.08)", marginBottom: 20 }}>
+                <div style={{ display: "inline-block", backgroundColor: "#ffffff", padding: "12px", borderRadius: 12, border: "1px solid #E0E8FF", marginBottom: 20 }}>
                   <QRCodeCanvas value={result.qr_token} size={180} />
                 </div>
-                
                 <p style={{ fontSize: 20, fontWeight: 700, color: "#0A0F1E", margin: "0 0 20px" }}>{result.name}</p>
-                
-                {/* Backup code with background tint */}
-                <div style={{ background: "#F1F5F9", padding: "12px", borderRadius: 12, margin: "0 0 20px" }}>
-                  <p style={{ fontSize: 10, color: "#64748B", letterSpacing: 2, textTransform: "uppercase", margin: "0 0 4px" }}>KODE CADANGAN</p>
-                  <p style={{ fontSize: 28, fontWeight: 700, fontFamily: "monospace", letterSpacing: 4, color: "#0066FF", margin: 0 }}>
-                    {result.qr_token.slice(-6).toUpperCase()}
-                  </p>
-                </div>
-                
+                <p style={{ fontSize: 10, color: "#5A6580", letterSpacing: 2, textTransform: "uppercase", margin: "0 0 4px" }}>KODE CADANGAN</p>
+                <p style={{ fontSize: 28, fontWeight: 700, fontFamily: "monospace", letterSpacing: 4, color: "#0066FF", margin: "0 0 24px" }}>
+                  {result.qr_token.slice(-6).toUpperCase()}
+                </p>
                 <div style={{ margin: "0 -32px", padding: "16px 32px", backgroundColor: "#F8FAFF" }}>
                   <p style={{ fontSize: 12, color: "#5A6580", margin: "0 0 4px" }}>Tunjukkan QR ini saat check-in</p>
-                  <p style={{ fontSize: 11, color: "#0066FF", fontWeight: 600, margin: 0 }}>Regesit</p>
+                  <p style={{ fontSize: 11, color: "#0066FF", fontWeight: 600, margin: 0 }}>bdForms</p>
                 </div>
               </div>
             </div>
             {email.trim() && emailStatus === "sent" && (
               <p className="mb-4 text-sm" style={{ color: "var(--on-surface-variant)" }}>
-                ✉️ Tiket juga dikirim ke <strong>{email.trim()}</strong>
+                ✉️ Tiket dikirim ke {email.trim()}
               </p>
             )}
             {email.trim() && emailStatus === "failed" && (
@@ -463,21 +533,15 @@ export default function RegisterClient() {
                 ⚠️ Gagal kirim email, silakan download tiket manual
               </p>
             )}
-            
-            {/* Primary brand-colored download button */}
             <button
               type="button"
               onClick={downloadTicket}
-              className="mx-auto mb-6 flex w-full max-w-[320px] items-center justify-center gap-2 rounded-xl py-3 font-bold transition-all shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-              style={{ background: "var(--brand-gradient)", color: "var(--on-green)" }}
+              className="mx-auto mb-6 flex w-full max-w-[320px] items-center justify-center gap-2 rounded-xl border py-3 font-bold transition-colors hover:bg-white/5"
+              style={{ borderColor: "var(--outline-variant)" }}
             >
               <span className="material-symbols-outlined">download</span>
               Download Tiket
             </button>
-
-            <p className="mx-auto max-w-[320px] text-xs text-center" style={{ color: "var(--on-surface-variant)" }}>
-              💡 Pengguna iPhone/iPad: Jika tiket tidak terdownload otomatis, tekan lama gambar QR di atas lalu pilih <strong>"Simpan ke Foto"</strong>.
-            </p>
 
 
 
@@ -487,11 +551,6 @@ export default function RegisterClient() {
             {bannerUrl && (
               <div className="relative mb-6 aspect-video w-full max-w-md overflow-hidden rounded-2xl">
                 <Image src={bannerUrl} alt="Banner event" fill className="object-cover" loading="eager" />
-              </div>
-            )}
-            {description && (
-              <div className="w-full max-w-md mb-6 p-4 rounded-xl" style={{ background: "var(--surface-container-low)" }}>
-                <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>{description}</p>
               </div>
             )}
             <div className="glass w-full max-w-md rounded-2xl p-8">
@@ -592,31 +651,6 @@ export default function RegisterClient() {
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
                       </select>
-                    ) : field.type === "file" ? (
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          if (file.size > 2 * 1024 * 1024) { alert("File terlalu besar (maks. 2MB)."); return; }
-                          if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) { alert("Format tidak didukung."); return; }
-
-                          let fileToUpload = file;
-                          if (file.type.startsWith("image/")) {
-                            try {
-                              fileToUpload = await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1600, useWebWorker: true });
-                            } catch (err) { console.error("Compression:", err); }
-                          }
-
-                          const { data, error } = await supabase.storage.from("participant-uploads").upload(`${eventId}/${crypto.randomUUID()}-${file.name}`, fileToUpload);
-                          if (error) { alert("Gagal upload file."); return; }
-                          const { data: urlData } = supabase.storage.from("participant-uploads").getPublicUrl(data.path);
-                          setCustomData((prev) => ({ ...prev, [field.id]: urlData.publicUrl }));
-                        }}
-                        required={field.required}
-                        className="bd-input w-full rounded-lg p-3"
-                      />
                     ) : (
                       <input
                         type={field.type === "phone" ? "tel" : field.type}
@@ -707,106 +741,66 @@ export default function RegisterClient() {
           </>
         )}
       </main>
-
-      {/* WhatsApp Group Join Modal */}
-      {showWhatsappModal && whatsappGroupUrl && (
-        <div className="whatsapp-modal-overlay">
-          <div className="whatsapp-modal-content">
-            <span className="material-symbols-outlined whatsapp-modal-icon">groups</span>
-            <h2 className="whatsapp-modal-title">Gabung Grup WhatsApp!</h2>
-            <p className="whatsapp-modal-description">Jangan lewatkan info dan update terbaru seputar acara ini.</p>
+      {result && whatsappGroupUrl && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'linear-gradient(135deg, #0066FF, #00C8FF)',
+          padding: '16px',
+          zIndex: 50,
+          boxShadow: '0 -8px 32px rgba(0,102,255,0.25)',
+          animation: 'slideUpBar 0.4s ease-out 1s both',
+        }}>
+          <div style={{
+            maxWidth: '420px',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              animation: 'pulseOnce 1.5s ease-out 1.5s',
+            }}>
+              <span className="material-symbols-outlined" style={{ color: '#FFFFFF', fontSize: '22px' }}>groups</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
+                Jangan lewatkan info acara!
+              </p>
+              <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.85)' }}>
+                Gabung grup WhatsApp sekarang
+              </p>
+            </div>
             <a
               href={whatsappGroupUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="whatsapp-modal-button"
-              onClick={() => setShowWhatsappModal(false)}
+              style={{
+                background: '#FFFFFF',
+                color: '#0066FF',
+                padding: '10px 18px',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
             >
-              Gabung Sekarang →
+              Gabung →
             </a>
-            <button
-              className="whatsapp-modal-close"
-              onClick={() => setShowWhatsappModal(false)}
-            >
-              Nanti Saja
-            </button>
           </div>
         </div>
       )}
-
-      {/* Inline styles for modal */}
-      <style jsx>{`
-        .whatsapp-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          background: rgba(0, 0, 0, 0.7);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 100;
-        }
-        .whatsapp-modal-content {
-          background: var(--surface-container);
-          border-radius: 16px;
-          padding: 32px;
-          text-align: center;
-          max-width: 400px;
-          margin: 20px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-          animation: modal-fade-in 0.3s ease-out forwards;
-        }
-        .whatsapp-modal-icon {
-          font-size: 64px;
-          color: var(--green);
-          margin-bottom: 24px;
-        }
-        .whatsapp-modal-title {
-          font-size: 28px;
-          font-weight: bold;
-          color: var(--on-surface);
-          margin-bottom: 16px;
-        }
-        .whatsapp-modal-description {
-          font-size: 16px;
-          color: var(--on-surface-variant);
-          margin-bottom: 32px;
-        }
-        .whatsapp-modal-button {
-          display: block;
-          width: 100%;
-          background: var(--green);
-          color: var(--on-green);
-          padding: 14px 24px;
-          border-radius: 12px;
-          font-size: 18px;
-          font-weight: bold;
-          text-decoration: none;
-          margin-bottom: 16px;
-          transition: transform 0.2s ease-out;
-        }
-        .whatsapp-modal-button:hover {
-          transform: translateY(-2px);
-        }
-        .whatsapp-modal-close {
-          background: none;
-          border: none;
-          color: var(--on-surface-variant);
-          font-size: 14px;
-          cursor: pointer;
-          padding: 8px;
-          transition: color 0.2s ease-out;
-        }
-        .whatsapp-modal-close:hover {
-          color: var(--on-surface);
-        }
-        @keyframes modal-fade-in {
-          from { opacity: 0; transform: translateY(-20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

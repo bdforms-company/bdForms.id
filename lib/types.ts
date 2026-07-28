@@ -1,7 +1,7 @@
 export type CustomField = {
   id: string;
   label: string;
-  type: "text" | "email" | "phone" | "number" | "textarea" | "select" | "file";
+  type: "text" | "email" | "phone" | "number" | "textarea" | "select";
   required: boolean;
   placeholder?: string;
   options?: string[];
@@ -25,7 +25,7 @@ export type FieldConfig = {
   institution: { enabled: boolean; required: boolean };
   position: { enabled: boolean; required: boolean };
   idNumber: { enabled: boolean; required: boolean };
-  customQuestions: { id: string; label: string; required: boolean; type: CustomField['type'] }[];
+  customQuestions: { id: string; label: string; required: boolean }[];
 };
 
 export const DEFAULT_FIELD_CONFIG: FieldConfig = {
@@ -60,19 +60,14 @@ export function parseFieldConfig(raw: unknown): FieldConfig {
   };
   const customQuestions = Array.isArray(o.customQuestions)
     ? o.customQuestions
-        .filter((q): q is { id: string; label: string; required: boolean; type: CustomField['type'] } =>
+        .filter((q): q is { id: string; label: string; required: boolean } =>
           !!q && typeof q === "object" && typeof (q as Record<string, unknown>).id === "string",
         )
-        .map((q) => {
-          const type = (q as Record<string, unknown>).type;
-          const validTypes: CustomField['type'][] = ["text", "email", "phone", "number", "textarea", "select", "file"];
-          return {
-            id: (q as any).id,
-            label: typeof (q as any).label === "string" ? (q as any).label : "",
-            required: bool((q as any).required, false),
-            type: validTypes.includes(type as any) ? (type as CustomField['type']) : "text",
-          };
-        })
+        .map((q) => ({
+          id: q.id,
+          label: typeof q.label === "string" ? q.label : "",
+          required: bool(q.required, false),
+        }))
     : [];
   return {
     phone: preset("phone"),

@@ -22,8 +22,6 @@ export default function SignupClient() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [success, setSuccess] = useState(false);
-  const nextPath = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "").get("next");
-  const safeNext = nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard";
 
   const validate = () => {
     const errors: FieldErrors = {};
@@ -59,18 +57,8 @@ export default function SignupClient() {
         await supabase.from("profiles").insert({ id: data.user.id, full_name: namaLengkap.trim() });
       }
       if (data.session) {
-        const syncRes = await fetch("/api/auth/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session: data.session }),
-        });
-        if (!syncRes.ok) {
-          setError("Akun berhasil dibuat, tapi sinkronisasi sesi gagal. Coba login ulang.");
-          setLoading(false);
-          return;
-        }
         router.refresh();
-        window.location.replace(safeNext);
+        router.push("/dashboard");
       } else {
         setSuccess(true);
       }
@@ -86,11 +74,11 @@ export default function SignupClient() {
   return (
     <div className="bd flex min-h-screen flex-col items-center px-4 pt-20">
       <Link href="/" className="mb-8 flex items-center gap-3 text-2xl font-bold" style={{ color: "var(--brand-blue)" }}>
-        <Image src="/logo.png" alt="Regesit" width={32} height={32} className="h-8 w-auto" priority />
-        <span>Regesit</span>
+        <Image src="/logo.png" alt="bdForms" width={32} height={32} className="h-8 w-auto" priority />
+        <span>bdForms</span>
       </Link>
       <div className="glass w-full max-w-md rounded-2xl p-8">
-        <h1 className="mb-8 text-center text-2xl font-bold">Buat akun Regesit</h1>
+        <h1 className="mb-8 text-center text-2xl font-bold">Buat akun bdForms</h1>
         {success ? <p className="text-center text-sm" style={{ color: "var(--success)" }}>✅ Silakan cek email Anda untuk verifikasi akun.</p> : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             <div><input type="text" value={namaLengkap} onChange={(e) => { setNamaLengkap(e.target.value); setFieldErrors((p) => ({ ...p, namaLengkap: undefined })); }} placeholder="Nama Lengkap" className={inputClass(fieldErrors.namaLengkap)} />{fieldErrors.namaLengkap && <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors.namaLengkap}</p>}</div>

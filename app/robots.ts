@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/dashboard', '/create', '/auth/', '/api/'],
       }
     ],
-    sitemap: 'https://www.regesit.com/sitemap.xml',
+    sitemap: 'https://www.bdforms.id/sitemap.xml',
   }
 }

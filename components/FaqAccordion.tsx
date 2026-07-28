@@ -4,19 +4,19 @@ import { useState } from "react";
 
 const FAQ_ITEMS = [
   {
-    q: "Apakah Regesit gratis?",
+    q: "Apakah bdForms gratis?",
     a: "Ya! Paket Starter gratis untuk event dengan maks. 25 peserta. Untuk event lebih besar, tersedia paket Standard, Pro, dan Enterprise dengan harga terjangkau.",
   },
   {
     q: "Apakah sistem tetap berjalan kalau internet mati?",
-    a: "Ya. Scanner check-in Regesit menggunakan teknologi offline-first — data peserta disimpan lokal di perangkat panitia dan akan otomatis tersinkron saat koneksi kembali.",
+    a: "Ya. Scanner check-in bdForms menggunakan teknologi offline-first — data peserta disimpan lokal di perangkat panitia dan akan otomatis tersinkron saat koneksi kembali.",
   },
   {
     q: "Bagaimana peserta mendapatkan QR tiket?",
     a: "Setelah mengisi form pendaftaran, QR tiket otomatis terunduh ke perangkat peserta. Peserta cukup tunjukkan QR ini saat check-in.",
   },
   {
-    q: "Berapa lama setup event di Regesit?",
+    q: "Berapa lama setup event di bdForms?",
     a: "Kurang dari 30 detik. Daftar akun, pilih paket, isi detail event, dan link pendaftaran langsung siap disebarkan.",
   },
   {
@@ -33,7 +33,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Apakah bisa dipakai untuk event besar?",
-    a: "Tentu. Regesit tersedia dalam paket Pro (maks. 500 peserta) dan Enterprise (custom volume) untuk event skala besar seperti seminar universitas, konferensi, dan acara pemerintahan.",
+    a: "Tentu. bdForms tersedia dalam paket Pro (maks. 500 peserta) dan Enterprise (custom volume) untuk event skala besar seperti seminar universitas, konferensi, dan acara pemerintahan.",
   },
 ];
 

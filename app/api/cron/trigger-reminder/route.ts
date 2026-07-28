@@ -22,7 +22,7 @@
  * ⚠️  Environment variables required (add to .env.local and Vercel dashboard):
  *   QSTASH_TOKEN            — from Upstash QStash console
  *   CRON_SECRET             — a long random string (e.g. `openssl rand -hex 32`)
- *   NEXT_PUBLIC_APP_URL     — production URL, e.g. https://www.regesit.com
+ *   NEXT_PUBLIC_APP_URL     — production URL, e.g. https://www.bdforms.id
  *                             (Vercel auto-provides VERCEL_URL in deployment)
  */
 

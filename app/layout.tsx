@@ -11,36 +11,36 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Regesit — Registrasi Event Tanpa Antrian',
-    template: '%s | Regesit'
+    default: 'bdForms — Registrasi Event Tanpa Antrian',
+    template: '%s | bdForms'
   },
   description: 'Platform registrasi event offline-first dengan QR check-in instan. Setup dalam 30 detik, check-in dalam 3 detik. Cocok untuk seminar kampus, komunitas, dan instansi pemerintahan di Aceh dan seluruh Indonesia.',
-  keywords: ['registrasi event', 'QR check-in', 'offline-first', 'seminar kampus', 'absensi digital', 'Regesit', 'event organizer', 'check-in massal', 'tiket digital', 'Aceh', 'Indonesia'],
-  authors: [{ name: 'Regesit', url: 'https://www.regesit.com' }],
-  creator: 'Regesit',
-  publisher: 'Regesit',
+  keywords: ['registrasi event', 'QR check-in', 'offline-first', 'seminar kampus', 'absensi digital', 'bdForms', 'event organizer', 'check-in massal', 'tiket digital', 'Aceh', 'Indonesia'],
+  authors: [{ name: 'bdForms', url: 'https://www.bdforms.id' }],
+  creator: 'bdForms',
+  publisher: 'bdForms',
   formatDetection: { email: false, address: false, telephone: false },
-  metadataBase: new URL('https://www.regesit.com'),
+  metadataBase: new URL('https://www.bdforms.id'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Regesit — Registrasi Event Tanpa Antrian',
+    title: 'bdForms — Registrasi Event Tanpa Antrian',
     description: 'Platform registrasi event offline-first dengan QR check-in instan. Setup dalam 30 detik, check-in dalam 3 detik.',
-    url: 'https://www.regesit.com',
-    siteName: 'Regesit',
+    url: 'https://www.bdforms.id',
+    siteName: 'bdForms',
     images: [{
       url: '/og-image.png',
       width: 1200,
       height: 630,
-      alt: 'Regesit — Platform Registrasi Event'
+      alt: 'bdForms — Platform Registrasi Event'
     }],
     locale: 'id_ID',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Regesit — Registrasi Event Tanpa Antrian',
+    title: 'bdForms — Registrasi Event Tanpa Antrian',
     description: 'Platform registrasi event offline-first dengan QR check-in instan.',
     images: ['/og-image.png'],
     creator: '@bdforms'

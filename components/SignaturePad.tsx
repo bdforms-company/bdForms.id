@@ -9,8 +9,8 @@ export interface SignaturePadHandle {
 }
 
 // Resolusi internal canvas (di-scale CSS ke lebar container)
-const W = 500;
-const H = 500;
+const W = 600;
+const H = 200;
 
 export const SignaturePad = forwardRef<SignaturePadHandle>((_, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);

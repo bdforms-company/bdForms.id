@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useAuth } from "@/hooks/useAuth";
+import ThemeToggle from "./ThemeToggle";
 
 const navLinks = [
   { href: "#how-it-works", label: "Cara Kerja" },
@@ -15,10 +15,6 @@ const navLinks = [
 export default function SiteNav() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, loading } = useAuth();
-
-  const authHref = user ? "/dashboard" : "/auth/login";
-  const authLabel = user ? "Dashboard" : "Masuk";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 80);
@@ -29,30 +25,34 @@ export default function SiteNav() {
   return (
     <>
       <nav
-        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b"
+        className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
         style={{
-          background: scrolled ? "rgba(var(--background-rgb, 255, 255, 255), 0.8)" : "transparent",
-          backdropFilter: scrolled ? "blur(12px)" : "none",
-          borderColor: scrolled ? "var(--outline)" : "transparent",
+          background: "var(--background)",
+          borderBottom: "1px solid var(--outline-variant)",
           boxShadow: scrolled ? "var(--shadow-sm)" : "none",
         }}
       >
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-6">
           {/* Left: Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <Image src="/logo.png" alt="Regesit Logo" width={32} height={32} className="h-8 w-8 transition-transform group-hover:scale-105" />
-            <span className="text-lg font-bold tracking-tight" style={{ color: "var(--on-background)" }}>
-              bd<span className="text-primary">Forms</span>
-            </span>
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/logo.png" alt="" width={32} height={32} className="h-8 w-8" />
+            <span className="text-lg font-bold" style={{ color: "var(--primary)" }}>bdForms</span>
           </Link>
 
-          {/* Center: Nav Links */}
-          <div className="hidden md:flex items-center gap-8">
+          {/* Center: Nav Links (hidden on scroll & mobile) */}
+          <div
+            className="hidden md:flex items-center gap-8 transition-all duration-300"
+            style={{
+              opacity: scrolled ? 0 : 1,
+              pointerEvents: scrolled ? "none" : "auto",
+              transform: scrolled ? "translateY(-8px)" : "translateY(0)",
+            }}
+          >
             {navLinks.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
-                className="text-xs font-semibold uppercase tracking-wider transition-colors hover:text-primary"
+                className="text-sm font-medium transition-colors hover:text-[var(--primary)]"
                 style={{ color: "var(--on-surface-variant)" }}
               >
                 {link.label}
@@ -61,17 +61,20 @@ export default function SiteNav() {
           </div>
 
           {/* Right: Controls */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2">
+              <ThemeToggle />
+            </div>
             <Link
-              href={authHref}
-              className="hidden sm:inline-flex text-sm font-medium px-3 py-2 rounded-lg transition-colors hover:bg-(--surface-container)"
+              href="/auth/login"
+              className="hidden sm:inline-flex text-sm font-medium px-3 py-2 rounded-lg transition-colors hover:bg-[var(--surface-container)]"
               style={{ color: "var(--on-surface-variant)" }}
             >
-              {loading ? "Masuk" : authLabel}
+              Masuk
             </Link>
             <Link
               href="/auth/signup"
-              className="rounded-lg px-4 py-2 text-sm font-bold transition-all hover:shadow-[0_0_12px_rgba(0,85,255,0.2)]"
+              className="rounded-lg px-4 py-2 text-sm font-bold transition-colors"
               style={{ background: "var(--primary)", color: "var(--on-primary)" }}
             >
               Mulai Sekarang
@@ -79,7 +82,7 @@ export default function SiteNav() {
             {/* Mobile hamburger */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="flex md:hidden items-center justify-center rounded-lg p-2 hover:bg-(--surface-container)"
+              className="flex md:hidden items-center justify-center rounded-lg p-2 hover:bg-[var(--surface-container)]"
               aria-label="Menu"
             >
               <span className="material-symbols-outlined" style={{ color: "var(--on-surface)" }}>
@@ -101,20 +104,23 @@ export default function SiteNav() {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-(--surface-container)"
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-container)]"
                   style={{ color: "var(--on-surface)" }}
                 >
                   {link.label}
                 </a>
               ))}
               <Link
-                href={authHref}
+                href="/auth/login"
                 onClick={() => setMobileOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-(--surface-container)"
+                className="rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-[var(--surface-container)]"
                 style={{ color: "var(--on-surface)" }}
               >
-                {loading ? "Masuk" : authLabel}
+                Masuk
               </Link>
+              <div className="flex items-center gap-2 px-3 pt-2">
+                <ThemeToggle />
+              </div>
             </div>
           </div>
         )}

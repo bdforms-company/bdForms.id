@@ -19,7 +19,7 @@
  *   QSTASH_NEXT_SIGNING_KEY     — from Upstash QStash console (for key rotation)
  *   BREVO_API_KEY               — from Brevo dashboard
  *   BREVO_SENDER_EMAIL          — verified sender email
- *   BREVO_SENDER_NAME           — display name (e.g. "Regesit")
+ *   BREVO_SENDER_NAME           — display name (e.g. "bdForms")
  */
 
 import { NextResponse } from "next/server";
@@ -195,7 +195,7 @@ function buildReminderEmailHtml(
               <!-- Logo row -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="font-family: ${fontFamily}; font-size: 18px; font-weight: bold; color: #5bffa1; vertical-align: middle;">&#11041; Regesit</td>
+                  <td style="font-family: ${fontFamily}; font-size: 18px; font-weight: bold; color: #5bffa1; vertical-align: middle;">&#11041; bdForms</td>
                   <td align="right" style="font-family: ${fontFamily}; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #5bffa1; vertical-align: middle;">HARI-H EVENT</td>
                 </tr>
               </table>
@@ -327,12 +327,12 @@ function buildReminderEmailHtml(
           <!-- ═══════════════════════ FOOTER ════════════════════ -->
           <tr>
             <td style="padding: 32px 0 0 0; border-top: 1px solid #1e2a2c; text-align: center;">
-              <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 14px; font-weight: bold; color: #5bffa1;">&#11041; Regesit</p>
-              <p style="margin: 0 0 8px 0; font-family: ${fontFamily}; font-size: 12px; line-height: 1.5; color: #8a9299;">Powered by Regesit &mdash; Fast-Track Event Registration</p>
+              <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 14px; font-weight: bold; color: #5bffa1;">&#11041; bdForms</p>
+              <p style="margin: 0 0 8px 0; font-family: ${fontFamily}; font-size: 12px; line-height: 1.5; color: #8a9299;">Powered by bdForms &mdash; Fast-Track Event Registration</p>
               <p style="margin: 0 0 12px 0; font-family: ${fontFamily}; font-size: 12px; line-height: 1.5;">
-                <a href="https://regesit.com" style="color: #5bffa1; text-decoration: none;">regesit.com</a>
+                <a href="https://bdforms.id" style="color: #5bffa1; text-decoration: none;">bdforms.id</a>
               </p>
-              <p style="margin: 0; font-family: ${fontFamily}; font-size: 11px; line-height: 1.5; color: #8a9299;">&copy; 2026 Regesit. Built for speed.</p>
+              <p style="margin: 0; font-family: ${fontFamily}; font-size: 11px; line-height: 1.5; color: #8a9299;">&copy; 2026 bdForms. Built for speed.</p>
             </td>
           </tr>
 
@@ -391,7 +391,7 @@ export async function POST(request: NextRequest) {
   // ── 4. Check for env vars early ──────────────────────────────────────────
   const brevoApiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
-  const senderName = process.env.BREVO_SENDER_NAME ?? "Regesit";
+  const senderName = process.env.BREVO_SENDER_NAME ?? "bdForms";
 
   if (!brevoApiKey || !senderEmail) {
     console.error("[email/worker] ❌ Brevo credentials not configured — check BREVO_API_KEY and BREVO_SENDER_EMAIL env vars.");
@@ -415,7 +415,7 @@ export async function POST(request: NextRequest) {
     body: JSON.stringify({
       sender: { name: senderName, email: senderEmail },
       to: [{ email, name: participantName }],
-      subject: `🚀 Hari Ini Harinya! ${eventName} — Regesit`,
+      subject: `🚀 Hari Ini Harinya! ${eventName} — bdForms`,
       htmlContent,
     }),
   });

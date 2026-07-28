@@ -1,5 +1,5 @@
 -- ============================================================
--- Regesit — Avatar Support Migration
+-- bdForms — Avatar Support Migration
 -- Paste di Supabase SQL Editor untuk mengaktifkan fitur foto profil
 -- ============================================================
 

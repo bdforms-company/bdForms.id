@@ -3,7 +3,6 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { get as idbGet, set as idbSet, del as idbDel } from "idb-keyval";
 import { supabase, EVENT_ID } from "@/lib/supabase";
 import type { Participant, ScanResult } from "@/lib/types";
-import { findParticipant, normalizeQrPayload } from "@/lib/qr-token";
 import * as Sentry from "@sentry/nextjs";
 
 interface ScannerStore {
@@ -17,15 +16,11 @@ interface ScannerStore {
   hydrated: boolean;                          // Zustand rehydration finished?
   isSyncing: boolean;                         // background syncing in progress?
   syncError: string | null;                   // last sync error message
-  activeEventId: string | null;               // event currently loaded in cache
-  scannerToken: string | null;                // optional scanner link token for API auth
 
   // Actions
   fetchInitialData: (eventId?: string) => Promise<void>;
-  setScannerToken: (token: string | null) => void;
-  resolveParticipant: (raw: string) => Participant | undefined;
-  validateScan: (raw: string) => ScanResult;
-  processCheckIn: (raw: string) => Participant | null;
+  validateScan: (qrToken: string) => ScanResult;
+  processCheckIn: (qrToken: string) => Participant | null;
   syncToServer: () => Promise<void>;
   setCameraError: (status: boolean) => void;
   setHydrated: (status: boolean) => void;
@@ -35,7 +30,6 @@ interface ScannerStore {
 interface PersistedScannerState {
   participants: Record<string, Participant>;
   syncQueue: string[];
-  activeEventId: string | null;
 }
 
 // Custom storage engine wrapper using idb-keyval (IndexedDB)
@@ -52,55 +46,6 @@ const idbStorage = createJSONStorage<PersistedScannerState>(() => ({
   },
 }));
 
-async function pushCheckIns(
-  tokens: string[],
-  scannerToken: string | null,
-): Promise<{ ok: boolean; error?: string }> {
-  // 1) Prefer server API (service role) — works even if RPC missing / RLS tight
-  try {
-    const res = await fetch("/api/check-in", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tokens,
-        ...(scannerToken ? { scannerToken } : {}),
-      }),
-    });
-    if (res.ok) {
-      console.info("[scanner] check-in via /api/check-in OK", { count: tokens.length });
-      return { ok: true };
-    }
-    const body = await res.json().catch(() => ({}));
-    console.warn("[scanner] /api/check-in failed, trying fallbacks:", body);
-  } catch (err) {
-    console.warn("[scanner] /api/check-in network error, trying fallbacks:", err);
-  }
-
-  // 2) Prefer RPC when deployed
-  const { error: rpcError } = await supabase.rpc("batch_check_in", { tokens });
-  if (!rpcError) {
-    console.info("[scanner] check-in via batch_check_in RPC OK", { count: tokens.length });
-    return { ok: true };
-  }
-  console.warn("[scanner] batch_check_in RPC unavailable:", rpcError.message);
-
-  // 3) Direct client update (anon can write while RLS is open)
-  const now = new Date().toISOString();
-  const { error: updError } = await supabase
-    .from("participants")
-    .update({ is_checked_in: true, check_in_time: now })
-    .in("qr_token", tokens)
-    .eq("is_checked_in", false);
-
-  if (updError) {
-    console.error("[scanner] direct update failed:", updError);
-    return { ok: false, error: updError.message };
-  }
-
-  console.info("[scanner] check-in via direct update OK", { count: tokens.length });
-  return { ok: true };
-}
-
 export const useScannerStore = create<ScannerStore>()(
   persist(
     (set, get) => ({
@@ -113,10 +58,7 @@ export const useScannerStore = create<ScannerStore>()(
       hydrated: false,
       isSyncing: false,
       syncError: null,
-      activeEventId: null,
-      scannerToken: null,
       setHydrated: (hydrated) => set({ hydrated }),
-      setScannerToken: (scannerToken) => set({ scannerToken }),
 
       // INIT (Online): SELECT * FROM participants -> map by qr_token
       fetchInitialData: async (eventId = EVENT_ID) => {
@@ -131,79 +73,45 @@ export const useScannerStore = create<ScannerStore>()(
           const map: Record<string, Participant> = {};
           const localQueue = get().syncQueue;
           const localParticipants = get().participants;
-          const prevEventId = get().activeEventId;
-
-          // Drop stale cache from a different event
-          const sameEvent = !prevEventId || prevEventId === eventId;
 
           (data ?? []).forEach((p) => {
             const qrToken = p.qr_token;
-            if (
-              sameEvent &&
-              localQueue.includes(qrToken) &&
-              localParticipants[qrToken]
-            ) {
+            if (localQueue.includes(qrToken) && localParticipants[qrToken]) {
               // Keep the local checked-in state if it's in the syncQueue
               map[qrToken] = {
                 ...p,
                 is_checked_in: true,
-                check_in_time:
-                  localParticipants[qrToken].check_in_time || p.check_in_time,
+                check_in_time: localParticipants[qrToken].check_in_time || p.check_in_time,
               } as Participant;
             } else {
               map[qrToken] = p as Participant;
             }
           });
 
-          set({
-            participants: map,
-            totalCount: data?.length ?? 0,
-            isReady: true,
-            activeEventId: eventId,
-            // Drop queue entries that no longer belong to this event's roster
-            syncQueue: sameEvent
-              ? localQueue.filter((t) => map[t])
-              : [],
-          });
-
-          console.info("[scanner] loaded participants", {
-            eventId,
-            count: data?.length ?? 0,
-          });
+          set({ participants: map, totalCount: data?.length ?? 0, isReady: true });
         } catch (err) {
           Sentry.captureException(err, {
-            tags: { eventId, action: "fetchInitialData" },
+            tags: { eventId, action: "fetchInitialData" }
           });
           throw err;
         }
       },
 
-      resolveParticipant: (raw) => findParticipant(get().participants, raw),
-
       // FR-5 / FR-6: lookup lokal O(1), evaluasi state
-      validateScan: (raw) => {
-        const p = findParticipant(get().participants, raw);
-        if (!p) {
-          console.info(
-            "[scanner] NOT_FOUND raw=",
-            JSON.stringify(raw),
-            "normalized=",
-            normalizeQrPayload(raw),
-          );
-          return "NOT_FOUND";
-        }
+      validateScan: (qrToken) => {
+        const p = get().participants[qrToken];
+        if (!p) return "NOT_FOUND";
         return p.is_checked_in ? "DUPLICATE" : "VERIFIED";
       },
 
       // Update state lokal jadi true + masuk antrean sync. NO live fetch.
-      processCheckIn: (raw) => {
-        const p = findParticipant(get().participants, raw);
+      processCheckIn: (qrToken) => {
+        const p = get().participants[qrToken];
         if (!p || p.is_checked_in) {
           set({ lastScanned: p ?? null });
           return p ?? null;
         }
 
-        const qrToken = p.qr_token;
         const updated: Participant = {
           ...p,
           is_checked_in: true,
@@ -218,51 +126,51 @@ export const useScannerStore = create<ScannerStore>()(
           lastScanned: updated,
         }));
 
-        console.info("[scanner] local check-in queued", {
-          name: p.name,
-          token: qrToken.slice(0, 8),
-        });
-
         // fire-and-forget; aman walau offline (di-catch di dalam)
         void get().syncToServer();
         return updated;
       },
 
       // Background sync: UPDATE semua token di antrean. Offline-resilient (NFR-2).
+      // Refactored to guarantee idempotency and concurrency safety.
       syncToServer: async () => {
-        const { syncQueue, scannerToken } = get();
+        const { syncQueue } = get();
         if (syncQueue.length === 0) {
           set({ syncError: null });
           return;
         }
 
+        // Deduplicate key values in the queue
         const pending = Array.from(new Set(syncQueue));
 
         // Optimistically clear these processed tokens from the queue
+        // preventing concurrent calls from double-processing them
         set((s) => ({
           isSyncing: true,
           syncQueue: s.syncQueue.filter((t) => !pending.includes(t)),
         }));
 
         try {
-          const result = await pushCheckIns(pending, scannerToken);
-          if (!result.ok) {
-            Sentry.captureException(
-              new Error(`Check-in sync failed: ${result.error}`),
-              { extra: { tokens: pending } },
-            );
+          const { error } = await supabase.rpc("batch_check_in", { tokens: pending });
+          if (error) {
+            console.error("Batch check-in RPC failed:", error);
+            Sentry.captureException(new Error(`Batch check-in RPC failed: ${error.message}`), {
+              extra: { tokens: pending }
+            });
             set((s) => ({
               syncQueue: Array.from(new Set([...s.syncQueue, ...pending])),
-              syncError: `Gagal sinkron: ${result.error}`,
+              syncError: `Gagal sinkron: ${error.message}`,
               isSyncing: false,
             }));
           } else {
             set({ syncError: null, isSyncing: false });
           }
         } catch (err) {
-          console.error("[scanner] sync exception:", err);
+          console.error("Batch check-in RPC exception:", err);
           const message = err instanceof Error ? err.message : "Unknown error";
-          Sentry.captureException(err, { extra: { tokens: pending } });
+          Sentry.captureException(err, {
+            extra: { tokens: pending }
+          });
           set((s) => ({
             syncQueue: Array.from(new Set([...s.syncQueue, ...pending])),
             syncError: `Gagal sinkron: ${message}`,
@@ -281,18 +189,15 @@ export const useScannerStore = create<ScannerStore>()(
       partialize: (state) => ({
         participants: state.participants,
         syncQueue: state.syncQueue,
-        activeEventId: state.activeEventId,
       }),
       onRehydrateStorage: () => {
-        return (_state, error) => {
-          // Always mark hydrated so the UI is never stuck on "Memuat..."
-          if (error) {
-            console.error("[scanner] rehydrate error:", error);
-          }
-          useScannerStore.getState().setHydrated(true);
-          const current = useScannerStore.getState();
-          if (current.syncQueue.length > 0) {
-            void current.syncToServer();
+        return (state, error) => {
+          if (!error && state) {
+            state.setHydrated(true);
+            // Trigger automatic sync for lingering items in syncQueue upon rehydration
+            if (state.syncQueue.length > 0) {
+              void state.syncToServer();
+            }
           }
         };
       },
