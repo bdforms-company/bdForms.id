@@ -6,10 +6,10 @@ This document records the configuration and logic flow of third-party integratio
 
 ## 📧 Transactional Email Pipelines
 
-To optimize deliverability and separation of duties, **bdForms** uses two distinct email pipelines: **Resend** for organizer management notices and **Brevo** for attendee ticketing.
+To optimize deliverability and separation of duties, **Regesit** uses two distinct email pipelines: **Resend** for organizer management notices and **Brevo** for attendee ticketing.
 
 Both endpoints employ security measures:
-1.  **CORS Restriction:** Only requests coming from `https://www.bdforms.id`, `https://bdforms.id`, and `http://localhost:3000` (in development mode) are allowed.
+1.  **CORS Restriction:** Only requests coming from `https://www.regesit.com`, `https://regesit.com`, and `http://localhost:3000` (in development mode) are allowed.
 2.  **Rate Limiting:** IP tracking map enforces a maximum of 5 requests per IP address per minute:
     ```typescript
     const ipLimitMap = new Map<string, { count: number; reset: number }>();
@@ -26,7 +26,7 @@ Both endpoints employ security measures:
     ```
 *   **Workflow:**
     1.  Receives request containing: `email`, `eventName`, `regLink`, `scanLink`, and `dashLink`.
-    2.  Pulls sender credentials from environment (`RESEND_SENDER_NAME` and `RESEND_SENDER_EMAIL`) with fallback to `"bdForms <onboarding@resend.dev>"`.
+    2.  Pulls sender credentials from environment (`RESEND_SENDER_NAME` and `RESEND_SENDER_EMAIL`) with fallback to `"Regesit <onboarding@resend.dev>"`.
     3.  Transmits custom dark-themed email using `resend.emails.send()`.
 
 ---
@@ -60,7 +60,7 @@ Both endpoints employ security measures:
               email: process.env.BREVO_SENDER_EMAIL,
             },
             to: [{ email, name: participantName }],
-            subject: `🎟️ Tiket Event ${eventName} — bdForms`,
+            subject: `🎟️ Tiket Event ${eventName} — Regesit`,
             htmlContent: htmlBody,
           }),
         });

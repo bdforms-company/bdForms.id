@@ -58,8 +58,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <aside className="hidden md:flex w-64 flex-col border-r border-[--outline-variant] bg-[--surface-container-low] p-6 shrink-0">
           {/* Logo */}
           <Link href="/dashboard" className="mb-10 flex items-center gap-3 text-xl font-bold" style={{ color: "var(--brand-blue)" }}>
-            <Image src="/logo.png" alt="bdForms" width={28} height={28} className="h-7 w-auto" />
-            <span>bdForms</span>
+            <Image src="/logo.png" alt="Regesit" width={28} height={28} className="h-7 w-auto" />
+            <span>Regesit</span>
           </Link>
 
           {/* Navigation Links */}
@@ -113,8 +113,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Mobile Top Navbar */}
           <header className="md:hidden sticky top-0 z-40 border-b bg-[--surface-container-low] border-[--outline-variant] px-4 py-3 flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center gap-2 font-bold" style={{ color: "var(--brand-blue)" }}>
-              <Image src="/logo.png" alt="bdForms" width={24} height={24} className="h-6 w-auto" />
-              <span className="text-lg">bdForms</span>
+              <Image src="/logo.png" alt="Regesit" width={24} height={24} className="h-6 w-auto" />
+              <span className="text-lg">Regesit</span>
             </Link>
 
             <button 

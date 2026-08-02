@@ -16,7 +16,11 @@ export default function CalendarPage() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<EventSummary[]>([]);
-  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [currentDate, setCurrentDate] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setCurrentDate(new Date());
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -45,8 +49,8 @@ export default function CalendarPage() {
   }, [user]);
 
   // Calendar logic
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
+  const year = currentDate ? currentDate.getFullYear() : new Date().getFullYear();
+  const month = currentDate ? currentDate.getMonth() : new Date().getMonth();
 
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -65,7 +69,7 @@ export default function CalendarPage() {
     days.push(new Date(year, month, i));
   }
 
-  const monthName = currentDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+  const monthName = currentDate ? currentDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" }) : "";
 
   const getEventsForDay = (date: Date) => {
     return events.filter((ev) => {
@@ -81,7 +85,7 @@ export default function CalendarPage() {
 
   const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
-  if (loading) {
+  if (loading || !currentDate) {
     return (
       <div className="bd flex min-h-screen items-center justify-center">
         <span className="material-symbols-outlined animate-spin text-5xl" style={{ color: "var(--primary)" }}>
@@ -98,22 +102,22 @@ export default function CalendarPage() {
         Jadwal pelaksanaan seluruh event yang Anda kelola.
       </p>
 
-      <div className="glass rounded-3xl p-6">
+      <div className="glass rounded-3xl p-8">
         {/* Calendar Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white">{monthName}</h2>
-          <div className="flex gap-2">
-            <button onClick={prevMonth} className="rounded-lg border p-2 hover:bg-white/5" style={{ borderColor: "var(--outline-variant)" }}>
-              <span className="material-symbols-outlined text-sm">chevron_left</span>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-white tracking-tight">{monthName}</h2>
+          <div className="flex gap-2 p-1 bg-white/5 rounded-xl">
+            <button onClick={prevMonth} className="rounded-lg p-2 hover:bg-white/10 transition-colors" aria-label="Bulan sebelumnya">
+              <span className="material-symbols-outlined">chevron_left</span>
             </button>
-            <button onClick={nextMonth} className="rounded-lg border p-2 hover:bg-white/5" style={{ borderColor: "var(--outline-variant)" }}>
-              <span className="material-symbols-outlined text-sm">chevron_right</span>
+            <button onClick={nextMonth} className="rounded-lg p-2 hover:bg-white/10 transition-colors" aria-label="Bulan berikutnya">
+              <span className="material-symbols-outlined">chevron_right</span>
             </button>
           </div>
         </div>
 
         {/* Days of Week Header */}
-        <div className="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-bold uppercase tracking-wider" style={{ color: "var(--on-surface-variant)" }}>
+        <div className="grid grid-cols-7 gap-4 mb-4 text-center text-xs font-bold uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>
           {dayNames.map((day) => (
             <div key={day} className="py-2">{day}</div>
           ))}
@@ -123,7 +127,7 @@ export default function CalendarPage() {
         <div className="grid grid-cols-7 gap-2">
           {days.map((date, idx) => {
             if (!date) {
-              return <div key={`empty-${idx}`} className="aspect-square bg-white/2 rounded-xl border border-transparent" />;
+              return <div key={`empty-${idx}`} className="aspect-square rounded-2xl" />;
             }
 
             const dayEvents = getEventsForDay(date);
@@ -132,22 +136,21 @@ export default function CalendarPage() {
             return (
               <div 
                 key={date.toISOString()} 
-                className="aspect-square rounded-xl border p-2 flex flex-col justify-between hover:bg-white/5 transition-colors"
+                className={`aspect-square rounded-2xl p-3 flex flex-col gap-2 border transition-all ${isToday ? "bg-[--primary-container]" : "hover:bg-white/5"}`}
                 style={{ 
-                  borderColor: isToday ? "var(--green)" : "var(--outline-variant)",
-                  background: isToday ? "rgba(91,255,161,0.05)" : "transparent"
+                  borderColor: isToday ? "var(--primary)" : "var(--outline-variant)",
                 }}
               >
-                <span className={`text-sm font-bold ${isToday ? "text-[--green]" : "text-white"}`}>
+                <span className={`text-sm font-bold ${isToday ? "text-[--on-primary-container]" : "text-white"}`}>
                   {date.getDate()}
                 </span>
                 
-                <div className="flex flex-col gap-1 overflow-y-auto max-h-[70%]">
+                <div className="flex flex-col gap-1 overflow-y-auto">
                   {dayEvents.map((ev) => (
                     <Link
                       key={ev.id}
                       href={`/dashboard/events/${ev.id}`}
-                      className="text-[10px] leading-tight px-1.5 py-0.5 rounded bg-[--primary-container] text-[--on-primary-container] font-semibold truncate hover:scale-105 transition-transform"
+                      className="text-[10px] leading-tight px-2 py-1 rounded-md bg-[--surface-variant] text-[--on-surface-variant] font-semibold truncate hover:bg-[--primary] hover:text-[--on-primary] transition-colors"
                       title={ev.name}
                     >
                       {ev.name}

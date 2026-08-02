@@ -86,11 +86,11 @@ export default function SignupClient() {
   return (
     <div className="bd flex min-h-screen flex-col items-center px-4 pt-20">
       <Link href="/" className="mb-8 flex items-center gap-3 text-2xl font-bold" style={{ color: "var(--brand-blue)" }}>
-        <Image src="/logo.png" alt="bdForms" width={32} height={32} className="h-8 w-auto" priority />
-        <span>bdForms</span>
+        <Image src="/logo.png" alt="Regesit" width={32} height={32} className="h-8 w-auto" priority />
+        <span>Regesit</span>
       </Link>
       <div className="glass w-full max-w-md rounded-2xl p-8">
-        <h1 className="mb-8 text-center text-2xl font-bold">Buat akun bdForms</h1>
+        <h1 className="mb-8 text-center text-2xl font-bold">Buat akun Regesit</h1>
         {success ? <p className="text-center text-sm" style={{ color: "var(--success)" }}>✅ Silakan cek email Anda untuk verifikasi akun.</p> : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             <div><input type="text" value={namaLengkap} onChange={(e) => { setNamaLengkap(e.target.value); setFieldErrors((p) => ({ ...p, namaLengkap: undefined })); }} placeholder="Nama Lengkap" className={inputClass(fieldErrors.namaLengkap)} />{fieldErrors.namaLengkap && <p className="mt-1 text-xs" style={{ color: "var(--error)" }}>{fieldErrors.namaLengkap}</p>}</div>

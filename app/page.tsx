@@ -1,5 +1,6 @@
 "use client";
 
+import { HeroSection } from "@/components/blocks/hero-section-1";
 import Image from "next/image";
 import Link from "next/link";
 import { PACKAGES, formatDiscount, formatPrice } from "@/lib/packages";
@@ -27,7 +28,7 @@ const FEATURES_TABLE = [
   { name: 'Analytics', starter: false, standard: false, pro: 'soon', enterprise: 'soon' },
   { name: 'Subdomain custom', starter: false, standard: false, pro: 'soon', enterprise: 'soon' },
   { name: 'White-label', starter: false, standard: false, pro: false, enterprise: 'soon' },
-  { name: 'Watermark bdForms', starter: true, standard: true, pro: true, enterprise: false },
+  { name: 'Watermark Regesit', starter: true, standard: true, pro: true, enterprise: false },
   { name: 'Priority support', starter: false, standard: false, pro: true, enterprise: 'Dedicated' },
 ];
 
@@ -68,7 +69,7 @@ function MockupCard() {
       <div className="rounded-3xl p-6 shadow-2xl" style={{ background: "linear-gradient(145deg, #0D1120, #151C30)", color: "#E8EEFF" }}>
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <p className="text-xs" style={{ color: "#7A8AB0" }}>bdForms Dashboard</p>
+            <p className="text-xs" style={{ color: "#7A8AB0" }}>Regesit Dashboard</p>
             <p className="text-lg font-bold">Seminar Teknologi Aceh</p>
           </div>
           <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: "var(--brand-gradient)" }}>
@@ -108,10 +109,10 @@ function MockupCard() {
     __html: JSON.stringify({
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "name": "bdForms",
+      "name": "Regesit",
       "applicationCategory": "BusinessApplication",
       "description": "Platform registrasi event offline-first dengan QR check-in instan",
-      "url": "https://www.bdforms.id",
+      "url": "https://www.regesit.com",
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -210,7 +211,7 @@ function PricingCard({ pkg }: { pkg: (typeof PACKAGES)[number] }) {
           </div>
         ))}
       </div>
-      <Link href={pkg.id === "enterprise" ? "https://wa.me/6285199527012?text=Halo%2C%20saya%20tertarik%20dengan%20paket%20Enterprise%20bdForms." : "/create/package"} className="mt-auto rounded-xl px-5 py-3 text-center text-sm font-bold" style={{ background: pkg.highlighted ? "var(--primary)" : "var(--surface-container)", color: pkg.highlighted ? "var(--on-primary)" : "var(--on-surface)" }}>
+      <Link href={pkg.id === "enterprise" ? "https://wa.me/6285199527012?text=Halo%2C%20saya%20tertarik%20dengan%20paket%20Enterprise%20Regesit." : "/create/package"} className="mt-auto rounded-xl px-5 py-3 text-center text-sm font-bold" style={{ background: pkg.highlighted ? "var(--primary)" : "var(--surface-container)", color: pkg.highlighted ? "var(--on-primary)" : "var(--on-surface)" }}>
         {pkg.cta}
       </Link>
     </div>
@@ -220,45 +221,9 @@ function PricingCard({ pkg }: { pkg: (typeof PACKAGES)[number] }) {
 export default function LandingPage() {
   return (
     <div className="bd">
-      <SiteNav />
+      <HeroSection />
       <main>
-
-      <section className="relative flex min-h-[calc(100vh-64px)] items-center overflow-hidden px-6 py-20 md:px-10">
-        <div className="hero-accent" style={{ top: -120, left: -180, background: "radial-gradient(circle, rgba(0,102,255,0.12), transparent 70%)" }} />
-        <div className="hero-accent" style={{ bottom: -160, right: -160, background: "radial-gradient(circle, rgba(0,200,255,0.12), transparent 70%)" }} />
-        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="text-center lg:text-left">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold" style={{ borderColor: "var(--outline)", background: "var(--primary-container)", color: "var(--on-primary-container)" }}>
-               Sistem Registrasi Event Modern dan Tanpa Ribet
-            </div>
-            <h1 className="mb-6 text-4xl font-black leading-tight tracking-tight md:text-6xl" style={{ color: "var(--on-background)" }}>
-              Registrasi Event Tanpa Antrian, <span className="gradient-text">Dalam 3 Detik.</span>
-            </h1>
-            <p className="mx-auto mb-8 max-w-xl text-base leading-relaxed md:text-lg lg:mx-0" style={{ color: "var(--on-surface-variant)" }}>
-              Sistem registrasi offline-first dengan QR check-in instan. Dari seminar kampus hingga acara pemerintahan.
-            </p>
-            <div className="mb-10 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-              <Link href="/auth/signup" aria-label="Mulai gratis — daftar sekarang (hero)" className="rounded-xl px-7 py-3.5 text-sm font-bold accent-glow" style={{ background: "var(--primary)", color: "var(--on-primary)" }}>Mulai Gratis</Link>
-              <a href="#how-it-works" className="rounded-xl border px-7 py-3.5 text-sm font-bold" style={{ borderColor: "var(--outline)", color: "var(--on-surface)" }}>Lihat Cara Kerjanya</a>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                ["< 3 Detik", "Check-in"],
-                ["< 30 Detik", "Setup Event"],
-                ["100%", "Offline-First"],
-              ].map(([value, label]) => (
-                <div key={label} className="rounded-2xl border p-4 text-center" style={{ borderColor: "var(--outline-variant)", background: "var(--surface)" }}>
-                  <p className="gradient-text text-xl font-black">{value}</p>
-                  <p className="mt-1 text-xs" style={{ color: "var(--on-surface-variant)" }}>{label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <MockupCard />
-        </div>
-      </section>
-
-      <section className="border-y py-14 md:px-10" style={{ borderColor: "var(--outline-variant)", background: "var(--surface)" }}>
+        <section className="border-y py-14 md:px-10" style={{ borderColor: "var(--outline-variant)", background: "var(--surface)" }}>
         <p className="mb-8 text-center text-sm font-semibold" style={{ color: "var(--on-surface-variant)" }}>Dipercaya oleh komunitas & organisasi terkemuka</p>
         <div className="mx-auto w-full overflow-hidden">
           <div style={{
@@ -296,7 +261,7 @@ export default function LandingPage() {
       <section id="how-it-works" className="px-6 py-24 md:px-10" style={{ background: "var(--surface)" }}>
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto mb-16 max-w-3xl text-center">
-            <h2 className="mb-4 text-3xl font-black md:text-5xl">Cara Kerja bdForms</h2>
+            <h2 className="mb-4 text-3xl font-black md:text-5xl">Cara Kerja Regesit</h2>
             <p style={{ color: "var(--on-surface-variant)" }}>Dari buat event sampai check-in, semua dalam satu platform.</p>
           </div>
           <div className="relative space-y-12">
@@ -390,7 +355,7 @@ export default function LandingPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Image src="/logo.png" alt="" width={28} height={28} style={{ objectFit: 'contain' }} />
-                    <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--on-surface)' }}>bdForms</span>
+                    <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--on-surface)' }}>Regesit</span>
                   </div>
                   <a href="mailto:contact.bdforms@gmail.com" style={{ fontSize: '13px', color: 'var(--on-surface-variant)' }}>
                     contact.bdforms@gmail.com
@@ -410,7 +375,7 @@ export default function LandingPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--on-surface)', marginBottom: '4px' }}>Connect</p>
                     <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                      <a href="https://www.instagram.com/bdforms.id" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                      <a href="https://www.instagram.com/regesit.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'var(--on-surface-variant)' }}>
                           <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
                         </svg>
@@ -430,7 +395,7 @@ export default function LandingPage() {
                           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                         </svg>
                       </a>
-                      <a href="https://www.threads.com/@bdforms.id" target="_blank" rel="noopener noreferrer" aria-label="Threads">
+                      <a href="https://www.threads.com/@regesit.com" target="_blank" rel="noopener noreferrer" aria-label="Threads">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{ color: 'var(--on-surface-variant)' }}>
                           <path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.31-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.05 7.164 1.43 1.781 3.63 2.695 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.36-.218-3.259-.797-1.063-.685-1.685-1.74-1.752-2.97-.065-1.2.38-2.31 1.256-3.124.84-.78 2.026-1.235 3.436-1.314.997-.057 1.93.043 2.766.297-.114-.687-.345-1.226-.687-1.61-.467-.523-1.193-.795-2.16-.809h-.03c-.78 0-1.84.215-2.515 1.235l-1.74-1.193c.903-1.366 2.367-2.118 4.255-2.118h.04c3.046.02 4.862 1.876 5.043 5.142.103.046.205.094.305.144 1.418.71 2.456 1.787 3 3.115.756 1.847.823 4.854-1.628 7.279-1.86 1.847-4.117 2.68-7.318 2.703zm.694-11.86c-.114-.002-.23-.001-.346.005-1.628.092-2.643.835-2.59 1.892.054 1.063 1.214 1.554 2.327 1.494 1.094-.06 2.36-.5 2.577-3.026a6.293 6.293 0 0 0-1.968-.365z"/>
                         </svg>
@@ -446,7 +411,7 @@ export default function LandingPage() {
               </div>
 
               <div style={{ borderTop: '1px solid var(--outline-variant)', paddingTop: '20px', textAlign: 'center' }}>
-                <p style={{ fontSize: '12px', color: 'var(--on-surface-variant)' }}>© 2026 bdForms. Hak cipta dilindungi.</p>
+                <p style={{ fontSize: '12px', color: 'var(--on-surface-variant)' }}>© 2026 Regesit. Hak cipta dilindungi.</p>
               </div>
             </div>
           </footer>

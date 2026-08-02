@@ -89,7 +89,7 @@ function ManageEventInner() {
   const [closing, setClosing] = useState(false);
   const [generatingToken, setGeneratingToken] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [origin, setOrigin] = useState("https://www.bdforms.id");
+  const [origin, setOrigin] = useState("https://www.regesit.com");
 
   const [editingSlug, setEditingSlug] = useState(false);
   const [slugInput, setSlugInput] = useState("");
@@ -537,7 +537,7 @@ function ManageEventInner() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
           <div className="glass w-full max-w-2xl rounded-2xl p-8 text-center">
             <span className="material-symbols-outlined mb-4 text-6xl" style={{ color: "rgba(255,191,0,0.9)" }}>schedule</span>
-            <p className="mb-4 text-2xl font-bold">⏳ Event ini menunggu konfirmasi pembayaran dari tim bdForms</p>
+            <p className="mb-4 text-2xl font-bold">⏳ Event ini menunggu konfirmasi pembayaran dari tim Regesit</p>
             <p className="mb-8 text-base" style={{ color: "var(--on-surface-variant)" }}>
               Detail event sudah tersimpan. Semua fitur akan aktif setelah pembayaran dikonfirmasi. Hubungi kami jika butuh bantuan.
             </p>
@@ -546,13 +546,13 @@ function ManageEventInner() {
                 ← Kembali ke Dashboard
               </Link>
               <a
-                href="https://wa.me/6285199527012?text=Halo%20bdForms%2C%20saya%20ingin%20konfirmasi%20pembayaran%20untuk%20event%20saya"
+                href="https://wa.me/6285199527012?text=Halo%20Regesit%2C%20saya%20ingin%20konfirmasi%20pembayaran%20untuk%20event%20saya"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-xl px-6 py-3 font-bold"
                 style={{ background: "var(--green)", color: "var(--on-green)" }}
               >
-                Hubungi bdForms via WhatsApp
+                Hubungi Regesit via WhatsApp
               </a>
             </div>
           </div>
@@ -660,7 +660,7 @@ function ManageEventInner() {
               <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
                 <label className="mb-2 block text-xs uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>URL Pendek Event</label>
                 <div className="flex items-center gap-2">
-                  <span className="shrink-0 text-sm" style={{ color: "var(--on-surface-variant)" }}>bdforms.id/e/</span>
+                  <span className="shrink-0 text-sm" style={{ color: "var(--on-surface-variant)" }}>regesit.com/e/</span>
                   <input
                     value={slugInput}
                     onChange={(e) => { setSlugInput(e.target.value.toLowerCase().replace(/\s+/g, "-")); setSlugSaveError(null); }}
@@ -692,11 +692,11 @@ function ManageEventInner() {
 
             <div className="flex items-center justify-between gap-3 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
               <code className="truncate text-sm">
-                {ev.slug ? `bdforms.id/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`}
+                {ev.slug ? `regesit.com/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`}
               </code>
               <button
                 onClick={() => {
-                  const link = ev.slug ? `https://bdforms.id/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`;
+                  const link = ev.slug ? `https://regesit.com/e/${ev.slug}` : `${origin}/register?eventId=${eventId}`;
                   navigator.clipboard?.writeText(link);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 1500);
@@ -733,10 +733,10 @@ function ManageEventInner() {
               <h2 className="mb-2 text-lg font-bold">Materi Pre-Event</h2>
               <p className="mb-4 text-sm" style={{ color: "var(--on-surface-variant)" }}>Link materi yang bisa dibagikan ke peserta</p>
               <div className="flex items-center justify-between gap-3 rounded-xl border p-4" style={{ borderColor: "var(--outline-variant)", background: "var(--surface-low)" }}>
-                <code className="truncate text-sm">bdforms.id/doc/{ev.doc_slug}</code>
+                <code className="truncate text-sm">regesit.com/doc/{ev.doc_slug}</code>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
-                    onClick={() => { navigator.clipboard?.writeText(`https://bdforms.id/doc/${ev.doc_slug}`); setCopiedDoc(true); setTimeout(() => setCopiedDoc(false), 1500); }}
+                    onClick={() => { navigator.clipboard?.writeText(`https://regesit.com/doc/${ev.doc_slug}`); setCopiedDoc(true); setTimeout(() => setCopiedDoc(false), 1500); }}
                     className="rounded-lg p-2 hover:bg-white/10"
                     title="Salin"
                   >

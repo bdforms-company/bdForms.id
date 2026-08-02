@@ -78,11 +78,11 @@ export default function LoginClient() {
     <div className="bd relative flex min-h-screen flex-col items-center px-4 pt-20">
       <button onClick={() => router.push("/")} className="absolute top-6 left-6 flex items-center gap-1 text-sm" style={{ color: "var(--on-surface-variant)" }}><span className="material-symbols-outlined text-base">arrow_back</span>Beranda</button>
       <Link href="/" className="mb-8 flex items-center gap-3 text-2xl font-bold" style={{ color: "var(--brand-blue)" }}>
-        <Image src="/logo.png" alt="bdForms" width={32} height={32} className="h-8 w-auto" priority />
-        <span>bdForms</span>
+        <Image src="/logo.png" alt="Regesit" width={32} height={32} className="h-8 w-auto" priority />
+        <span>Regesit</span>
       </Link>
       <div className="glass w-full max-w-md rounded-2xl p-8">
-        <h1 className="mb-8 text-center text-2xl font-bold">Masuk ke bdForms</h1>
+        <h1 className="mb-8 text-center text-2xl font-bold">Masuk ke Regesit</h1>
         {successMessage && <p className="mb-4 text-center text-sm" style={{ color: "var(--success)" }}>{successMessage}</p>}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
