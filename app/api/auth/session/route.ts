@@ -6,7 +6,7 @@ export async function GET() {
     const supabase = await createSupabaseServerClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      return NextResponse.json({ session: null, error: userError?.message || "Invalid session" }, { status: 400 });
+      return NextResponse.json({ session: null });
     }
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) {
