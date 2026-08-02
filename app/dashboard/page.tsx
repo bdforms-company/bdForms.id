@@ -259,59 +259,68 @@ function DashboardContent() {
       </header>
 
       <main>
-        {totalEvents === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <span className="material-symbols-outlined mb-4 text-6xl" style={{ color: "var(--on-surface-variant)" }}>
-              event
-            </span>
-            <h2 className="mb-2 text-xl font-bold">Belum ada event</h2>
-            <p className="mb-6 max-w-sm text-sm" style={{ color: "var(--on-surface-variant)" }}>
-              Buat event pertamamu dan mulai terima pendaftaran!
-            </p>
-            <Link
-              href="/create"
-              className="rounded-xl px-6 py-3 font-bold"
-              style={{ background: "var(--primary)", color: "var(--on-primary)" }}
-            >
-              Buat Event Sekarang
-            </Link>
-          </div>
-        ) : (
-          <>
-            <section className="mb-10">
-              <h2 className="mb-4 text-lg font-bold">Event Aktif</h2>
-              {upcoming.length === 0 ? (
-                <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>Belum ada event aktif.</p>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-                  {upcoming.map((ev) => (
-                    <EventCard key={ev.id} ev={ev} />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            {past.length > 0 && (
+        <div className="flex flex-col gap-8">
+          {totalEvents === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center glass rounded-3xl">
+              <span className="material-symbols-outlined mb-4 text-6xl" style={{ color: "var(--on-surface-variant)" }}>
+                event
+              </span>
+              <h2 className="mb-2 text-2xl font-bold">Belum ada event</h2>
+              <p className="mb-8 max-w-sm text-sm" style={{ color: "var(--on-surface-variant)" }}>
+                Buat event pertamamu dan mulai terima pendaftaran!
+              </p>
+              <Link
+                href="/create"
+                className="rounded-2xl px-8 py-4 font-bold transition-transform hover:scale-105"
+                style={{ background: "var(--primary)", color: "var(--on-primary)" }}
+              >
+                Buat Event Sekarang
+              </Link>
+            </div>
+          ) : (
+            <>
               <section>
-                <button
-                  type="button"
-                  onClick={() => setPastOpen((v) => !v)}
-                  className="mb-4 flex w-full items-center justify-between text-lg font-bold"
-                >
-                  Event Selesai
-                  <span className="material-symbols-outlined">{pastOpen ? "expand_less" : "expand_more"}</span>
-                </button>
-                {pastOpen && (
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-                    {past.map((ev) => (
-                      <EventCard key={ev.id} ev={ev} past />
+                <div className="flex items-baseline justify-between mb-6">
+                  <h2 className="text-xl font-bold">Event Aktif</h2>
+                  <span className="text-sm font-medium" style={{ color: "var(--on-surface-variant)" }}>
+                    {upcoming.length} event
+                  </span>
+                </div>
+                {upcoming.length === 0 ? (
+                  <div className="rounded-2xl border p-8 text-center" style={{ borderColor: "var(--outline-variant)" }}>
+                    <p className="text-sm" style={{ color: "var(--on-surface-variant)" }}>Belum ada event aktif saat ini.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {upcoming.map((ev) => (
+                      <EventCard key={ev.id} ev={ev} />
                     ))}
                   </div>
                 )}
               </section>
-            )}
-          </>
-        )}
+
+              {past.length > 0 && (
+                <section>
+                  <button
+                    type="button"
+                    onClick={() => setPastOpen((v) => !v)}
+                    className="flex w-full items-center justify-between mb-6 group"
+                  >
+                    <h2 className="text-xl font-bold">Event Selesai</h2>
+                    <span className="material-symbols-outlined transition-transform group-hover:translate-y-0.5">{pastOpen ? "expand_less" : "expand_more"}</span>
+                  </button>
+                  {pastOpen && (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {past.map((ev) => (
+                        <EventCard key={ev.id} ev={ev} past />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+            </>
+          )}
+        </div>
       </main>
     </div>
   );

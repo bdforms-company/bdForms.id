@@ -1,11 +1,13 @@
 -- ============================================================
--- bdForms — Executable DB Schema (paste di Supabase SQL Editor)
+-- Regesit — Executable DB Schema (paste di Supabase SQL Editor)
 -- ============================================================
 
 -- Table 1: events
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  is_online boolean default false,
+  wa_group_url text,
   created_at timestamptz default now()
 );
 

@@ -101,40 +101,26 @@ export default function AnalyticsPage() {
       ) : (
         <div className="flex flex-col gap-8">
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="glass rounded-2xl p-6 flex items-center gap-4">
-              <span className="material-symbols-outlined text-4xl" style={{ color: "var(--primary)" }}>event</span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--on-surface-variant)" }}>Total Event</p>
-                <h3 className="text-2xl font-bold text-white">{totalEvents}</h3>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: "Total Event", value: totalEvents, icon: "event", color: "var(--primary)" },
+              { label: "Total Terdaftar", value: totalRegistered, icon: "groups", color: "var(--cyan)" },
+              { label: "Total Check-in", value: totalCheckedIn, icon: "task_alt", color: "var(--green)" },
+              { label: "Rasio Kehadiran", value: `${overallRate}%`, icon: "trending_up", color: "var(--warning)" },
+            ].map((stat) => (
+              <div key={stat.label} className="glass rounded-3xl p-8 flex flex-col gap-3 transition-transform hover:-translate-y-1">
+                <span className="material-symbols-outlined text-4xl" style={{ color: stat.color }}>{stat.icon}</span>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--on-surface-variant)" }}>{stat.label}</p>
+                  <h3 className="text-3xl font-bold text-white">{stat.value}</h3>
+                </div>
               </div>
-            </div>
-            <div className="glass rounded-2xl p-6 flex items-center gap-4">
-              <span className="material-symbols-outlined text-4xl" style={{ color: "var(--cyan)" }}>groups</span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--on-surface-variant)" }}>Total Terdaftar</p>
-                <h3 className="text-2xl font-bold text-white">{totalRegistered}</h3>
-              </div>
-            </div>
-            <div className="glass rounded-2xl p-6 flex items-center gap-4">
-              <span className="material-symbols-outlined text-4xl" style={{ color: "var(--green)" }}>task_alt</span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--on-surface-variant)" }}>Total Check-in</p>
-                <h3 className="text-2xl font-bold text-white">{totalCheckedIn}</h3>
-              </div>
-            </div>
-            <div className="glass rounded-2xl p-6 flex items-center gap-4">
-              <span className="material-symbols-outlined text-4xl" style={{ color: "var(--warning)" }}>trending_up</span>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--on-surface-variant)" }}>Rasio Kehadiran</p>
-                <h3 className="text-2xl font-bold text-white">{overallRate}%</h3>
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Detailed breakdown list */}
-          <div className="glass rounded-2xl p-6">
-            <h3 className="text-lg font-bold mb-4 text-white">Breakdown per Event</h3>
+          <div className="glass rounded-3xl p-8">
+            <h3 className="text-xl font-bold mb-6 text-white">Breakdown per Event</h3>
             {data.length === 0 ? (
               <p className="text-center text-sm py-8" style={{ color: "var(--on-surface-variant)" }}>Belum ada event yang dibuat.</p>
             ) : (

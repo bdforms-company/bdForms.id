@@ -36,7 +36,7 @@ export default function SiteNav() {
           {/* Left: Logo */}
           <Link href="/" className="flex items-center gap-2">
             <Image src="/logo.png" alt="" width={32} height={32} className="h-8 w-8" />
-            <span className="text-lg font-bold" style={{ color: "var(--primary)" }}>bdForms</span>
+            <span className="text-lg font-bold" style={{ color: "var(--primary)" }}>Regesit</span>
           </Link>
 
           {/* Center: Nav Links (hidden on scroll & mobile) */}

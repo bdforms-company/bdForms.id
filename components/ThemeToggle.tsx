@@ -35,7 +35,7 @@ export default function ThemeToggle() {
   if (!mounted) {
     return (
       <button
-        disabled
+        disabled={true}
         aria-hidden="true"
         style={{ width: 36, height: 36 }}
         className="rounded-full border"

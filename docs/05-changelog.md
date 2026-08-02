@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the **bdForms** platform will be documented in this file.
+All notable changes to the **Regesit** platform will be documented in this file.
 
 ---
 
@@ -25,3 +25,12 @@ All notable changes to the **bdForms** platform will be documented in this file.
   - Added **Standby Mode / Pause Camera** in `app/scan/page.tsx` using `html5-qrcode` pause/resume controls to prevent thermal throttling and device battery drain.
   - Added **Manual Check-in** input below the active camera feed, allowing O(1) lookups by token or fallback name searches.
   - Implemented a **Post-Registration QR Download Modal** in `app/register/RegisterClient.tsx` that forces attendees to download their ticket QR code to their local device (`tiket-bdforms.png`) immediately after registering, eliminating D-Day email bottleneck issues.
+
+## [2026-07-30] (Current)
+
+### Added
+- **Analytics RPC:** Implemented `public.get_event_summary` in `migrations/add_summarize_analytics_rpc.sql` for efficient database-level grouping.
+- **User Profiles:** Added system to manage `profiles` table (avatar, username, full_name) with support for auto-seeding via `handle_new_user` trigger.
+- **SEO Infrastructure:** Configured `app/sitemap.ts` and `app/robots.ts` for improved search discoverability.
+- **Observability:** Added full tracing support for Sentry via `sentry.server.config.ts` and `sentry.edge.config.ts`.
+- **System Cleanup:** Archived legacy documentation files to `docs/archive/` and initialized master documentation (`MASTER_ARCHITECTURE.md`, `DATABASE_MASTER.sql`).

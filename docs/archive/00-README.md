@@ -1,33 +1,33 @@
-# bdForms Internal Technical Documentation
+# Regesit Internal Technical Documentation
 
-Welcome to the internal technical documentation of **bdForms** (Fast-Track Registration Platform SaaS). This documentation is structured for developers and system administrators working on the codebase.
+Welcome to the internal technical documentation of **Regesit** (Fast-Track Registration Platform SaaS). This documentation is structured for developers and system administrators working on the codebase.
 
 ## 📌 Document Index
 
-- **[00-README.md](file:///home/nblauliadka/02_Competence/Today/bdForms.id/docs/00-README.md)** (This File)
+- **[00-README.md](file:///home/nblauliadka/02_Competence/Today/Regesit.id/docs/00-README.md)** (This File)
   High-level overview, architecture index, and developer entry point.
-- **[01-architecture.md](file:///home/nblauliadka/02_Competence/Today/bdForms.id/docs/01-architecture.md)**
+- **[01-architecture.md](file:///home/nblauliadka/02_Competence/Today/Regesit.id/docs/01-architecture.md)**
   Framework stack, Next.js App Router directory structure, client-server data flow, and runtime state mapping.
-- **[02-database-and-rls.md](file:///home/nblauliadka/02_Competence/Today/bdForms.id/docs/02-database-and-rls.md)**
+- **[02-database-and-rls.md](file:///home/nblauliadka/02_Competence/Today/Regesit.id/docs/02-database-and-rls.md)**
   Database schema design, relationships between tables, indices, Row Level Security (RLS) details, and storage buckets.
-- **[03-offline-scanner.md](file:///home/nblauliadka/02_Competence/Today/bdForms.id/docs/03-offline-scanner.md)**
+- **[03-offline-scanner.md](file:///home/nblauliadka/02_Competence/Today/Regesit.id/docs/03-offline-scanner.md)**
   Zustand store-based offline-first architecture, `html5-qrcode` integration, conflict validation, queue retry strategy, and sub-3-second check-in mechanism.
-- **[04-integrations.md](file:///home/nblauliadka/02_Competence/Today/bdForms.id/docs/04-integrations.md)**
+- **[04-integrations.md](file:///home/nblauliadka/02_Competence/Today/Regesit.id/docs/04-integrations.md)**
   Third-party mail integrations (Resend & Brevo), Sentry error monitoring pipeline, and Canvas-based Digital Signature capture.
-- **[05-changelog.md](file:///home/nblauliadka/02_Competence/Today/bdForms.id/docs/05-changelog.md)**
+- **[05-changelog.md](file:///home/nblauliadka/02_Competence/Today/Regesit.id/docs/05-changelog.md)**
   Changelog documenting platform changes, feature updates, security patches, and structural modifications.
 
 ---
 
 ## 🌟 High-Level Technical Summary
 
-**bdForms** is an offline-first event registration and fast-track check-in platform. Designed as a SaaS solution, it empowers organizers to easily create events, customize landing slugs, collect registrations (including custom field data and signatures), and execute high-speed check-ins on-site.
+**Regesit** is an offline-first event registration and fast-track check-in platform. Designed as a SaaS solution, it empowers organizers to easily create events, customize landing slugs, collect registrations (including custom field data and signatures), and execute high-speed check-ins on-site.
 
 ### Core Systems
 
 ```
                      ┌──────────────────┐
-                     │   bdForms Client │
+                     │   Regesit Client │
                      └────────┬─────────┘
                               │
             ┌─────────────────┼─────────────────┐
